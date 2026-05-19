@@ -1521,18 +1521,24 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
 
       {/* ── Logo ── */}
       <div style={{ marginBottom: "1.5rem", textAlign: "center" }}>
+        {/* filter no wrapper externo → drop-shadow segue o clipPath circular */}
         <div style={{
           width: 160, height: 160,
           margin: "0 auto 1.25rem",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          filter: `drop-shadow(0 0 28px ${T.accent}55) drop-shadow(0 0 60px ${T.accent}22)`,
-          position: "relative",
+          filter: `drop-shadow(0 0 32px ${T.accent}60) drop-shadow(0 0 70px ${T.accent}25)`,
         }}>
           {!imgErr ? (
             <img
               src="/icons/logo.png"
               alt="Oz.Wash"
-              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+              style={{
+                width: "100%", height: "100%",
+                objectFit: "cover",
+                display: "block",
+                /* clipPath corta geometricamente (sem antialiasing),
+                   48% = corta ~4px da borda, eliminando o anel branco */
+                clipPath: "circle(48% at 50% 50%)",
+              }}
               onError={() => setImgErr(true)}
             />
           ) : (
