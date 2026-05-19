@@ -1,16 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw } from "lucide-react";
-import T from "../../config/theme";
+import { T_DARK } from "../../config/theme";
 import { fDate, money } from "../../utils/formatters";
 
-const Badge = ({ children, color = T.accent }) => (
-  <span style={{ background: color + "22", color, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
-);
+const planLabel = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual" };
 
-const statusColor = (s) => ({ active: T.success, cancelled: T.danger, pending: T.muted }[s] || T.muted);
-const planLabel   = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual" };
+export default function SubscriptionsView({ supabase, T: propT }) {
+  const T = propT || T_DARK;
 
-export default function SubscriptionsView({ supabase }) {
+  const Badge = ({ children, color = T.accent }) => (
+    <span style={{ background: color + "22", color, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
+  );
+
+  const statusColor = (s) => ({ active: T.success, cancelled: T.danger, pending: T.muted }[s] || T.muted);
+
   const [subs,    setSubs]    = useState([]);
   const [loading, setLoading] = useState(true);
 

@@ -1,24 +1,26 @@
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, DollarSign, TrendingUp, CreditCard } from "lucide-react";
-import T from "../../config/theme";
+import { T_DARK } from "../../config/theme";
 import { fDate, money } from "../../utils/formatters";
-
-const StatCard = ({ label, value, color, icon: Icon }) => (
-  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "1.25rem" }}>
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
-      <div>
-        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>{label}</div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: color || T.text }}>{value}</div>
-      </div>
-      {Icon && <div style={{ background: (color || T.accent) + "18", borderRadius: 10, padding: 8 }}><Icon size={17} color={color || T.accent} /></div>}
-    </div>
-  </div>
-);
 
 const planLabel = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual" };
 const planPrice = { monthly: 79.9, semiannual: 399.9, annual: 699.9 };
 
-export default function FinanceView({ supabase }) {
+export default function FinanceView({ supabase, T: propT }) {
+  const T = propT || T_DARK;
+
+  const StatCard = ({ label, value, color, icon: Icon }) => (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "1.25rem" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+        <div>
+          <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>{label}</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: color || T.text }}>{value}</div>
+        </div>
+        {Icon && <div style={{ background: (color || T.accent) + "18", borderRadius: 10, padding: 8 }}><Icon size={17} color={color || T.accent} /></div>}
+      </div>
+    </div>
+  );
+
   const [checkouts, setCheckouts] = useState([]);
   const [loading,   setLoading]   = useState(true);
 

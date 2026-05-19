@@ -1,19 +1,21 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Check, X, RefreshCw, Trash2 } from "lucide-react";
-import T from "../../config/theme";
+import { Plus, Check, X, RefreshCw } from "lucide-react";
+import { T_DARK } from "../../config/theme";
 import { fDate } from "../../utils/formatters";
 
-const inputSt = {
-  width: "100%", background: T.surface, border: `1px solid ${T.border}`,
-  borderRadius: 8, padding: "0.6rem 0.875rem", color: T.text, fontSize: 14,
-  outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans', sans-serif",
-};
+export default function CourtesyView({ supabase, T: propT }) {
+  const T = propT || T_DARK;
 
-const Badge = ({ children, color }) => (
-  <span style={{ background: (color || T.accent) + "22", color: color || T.accent, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
-);
+  const inputSt = {
+    width: "100%", background: T.surface, border: `1px solid ${T.border}`,
+    borderRadius: 8, padding: "0.6rem 0.875rem", color: T.text, fontSize: 14,
+    outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans', sans-serif",
+  };
 
-export default function CourtesyView({ supabase }) {
+  const Badge = ({ children, color }) => (
+    <span style={{ background: (color || T.accent) + "22", color: color || T.accent, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
+  );
+
   const [courtesies, setCourtesies] = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [modal,      setModal]      = useState(false);

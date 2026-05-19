@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
-import T from "../../config/theme";
+import { T_DARK } from "../../config/theme";
 import { fDatetime } from "../../utils/formatters";
 
-const Badge = ({ children, color }) => (
-  <span style={{ background: (color || T.muted) + "22", color: color || T.muted, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
-);
+export default function AlertsView({ supabase, T: propT }) {
+  const T = propT || T_DARK;
 
-export default function AlertsView({ supabase }) {
+  const Badge = ({ children, color }) => (
+    <span style={{ background: (color || T.muted) + "22", color: color || T.muted, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
+  );
+
   const [alerts,  setAlerts]  = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +30,6 @@ export default function AlertsView({ supabase }) {
 
   const levelColor = (l) => ({ error: T.danger, warning: T.warn || "#f59e0b", info: T.info || "#60a5fa", success: T.success }[l] || T.muted);
 
-  // Fallback: if platform_alerts doesn't exist yet, show helpful message
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.75rem", flexWrap: "wrap", gap: 12 }}>

@@ -1,16 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, TrendingUp } from "lucide-react";
-import T from "../../config/theme";
+import { RefreshCw } from "lucide-react";
+import { T_DARK } from "../../config/theme";
 import { money } from "../../utils/formatters";
 
-const StatCard = ({ label, value, color }) => (
-  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "1.25rem" }}>
-    <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>{label}</div>
-    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: color || T.text }}>{value}</div>
-  </div>
-);
+export default function AnalyticsView({ supabase, metrics, T: propT }) {
+  const T = propT || T_DARK;
 
-export default function AnalyticsView({ supabase, metrics }) {
+  const StatCard = ({ label, value, color }) => (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "1.25rem" }}>
+      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>{label}</div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: color || T.text }}>{value}</div>
+    </div>
+  );
+
   const [growth,  setGrowth]  = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,10 +44,10 @@ export default function AnalyticsView({ supabase, metrics }) {
 
   const m = metrics || {};
   const planDistribution = [
-    { label: "Mensal",    count: m.monthly_count    || 0, color: T.accent },
-    { label: "Semestral", count: m.semiannual_count || 0, color: T.info   || "#60a5fa" },
+    { label: "Mensal",    count: m.monthly_count    || 0, color: T.accent  },
+    { label: "Semestral", count: m.semiannual_count || 0, color: T.info    },
     { label: "Anual",     count: m.annual_count     || 0, color: T.success },
-    { label: "Cortesia",  count: m.courtesy_count   || 0, color: T.muted  },
+    { label: "Cortesia",  count: m.courtesy_count   || 0, color: T.muted   },
   ];
 
   const maxGrowth = Math.max(...growth.map(g => g.count), 1);
@@ -60,9 +62,9 @@ export default function AnalyticsView({ supabase, metrics }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
-        <StatCard label="Total Clientes"  value={m.total_carwashes  || 0} color={T.accent}  />
-        <StatCard label="Ativos"          value={m.active_carwashes || 0} color={T.success} />
-        <StatCard label="Inadimplentes"   value={m.overdue_carwashes || 0} color={T.danger} />
+        <StatCard label="Total Clientes"  value={m.total_carwashes   || 0} color={T.accent}  />
+        <StatCard label="Ativos"          value={m.active_carwashes  || 0} color={T.success} />
+        <StatCard label="Inadimplentes"   value={m.overdue_carwashes || 0} color={T.danger}  />
         <StatCard label="MRR Estimado"    value={money(m.mrr || 0)}        color={T.success} />
       </div>
 

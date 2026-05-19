@@ -1,28 +1,33 @@
 import { useState } from "react";
 import {
-  DollarSign, TrendingUp, Users, AlertCircle, Gift,
+  DollarSign, TrendingUp, Users, AlertCircle,
   CreditCard, RefreshCw, TrendingDown, UserPlus,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-
-const T = {
-  bg: "#0b0b0e", surface: "#13131a", card: "#1a1a24", border: "#2a2a3a",
-  accent: "#4db8ff", accentGlow: "#4db8ff22",
-  text: "#ece8e0", muted: "#706b63", mutedLight: "#9a9590",
-  success: "#43d18a", successBg: "#43d18a18",
-  danger: "#f07070", dangerBg: "#f0707018",
-  info: "#60a5fa", infoBg: "#60a5fa18",
-};
+import { T_DARK } from "../../config/theme";
 
 const R$ = v => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(+v || 0);
 const pct = v => `${(+(v || 0)).toFixed(1)}%`;
 
-// ── KPI Card ─────────────────────────────────────────────────
-function KpiCard({ label, value, sub, color, icon: Icon, glow }) {
-  return (
+export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T: propT }) {
+  const T = propT || T_DARK;
+  const m = metrics || {};
+
+  const growthData = Array.isArray(m.monthly_growth) ? m.monthly_growth : [];
+  const planDist   = Array.isArray(m.plan_distribution) ? m.plan_distribution : [];
+  const totalActive = +(m.active_carwashes || 0);
+  const planMap = {};
+  planDist.forEach(p => { planMap[p.plan] = +(p.count || 0); });
+  const churnRate = m.total_carwashes > 0
+    ? ((+(m.cancelled_carwashes || 0) / +(m.total_carwashes || 1)) * 100)
+    : 0;
+
+  // ── Sub-components as closures (access T from parent scope) ──
+
+  const KpiCard = ({ label, value, sub, color, icon: Icon, glow }) => (
     <div style={{
       background: T.card, border: `1px solid ${glow ? (color || T.accent) + "33" : T.border}`,
       borderRadius: 14, padding: "1.25rem", minWidth: 0, position: "relative", overflow: "hidden",
@@ -43,11 +48,8 @@ function KpiCard({ label, value, sub, color, icon: Icon, glow }) {
       </div>
     </div>
   );
-}
 
-// ── Chart Card ───────────────────────────────────────────────
-function ChartCard({ title, sub, children }) {
-  return (
+  const ChartCard = ({ title, sub, children }) => (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "1.5rem" }}>
       <div style={{ marginBottom: "1.25rem" }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 1.5, color: T.text }}>{title}</div>
@@ -56,42 +58,37 @@ function ChartCard({ title, sub, children }) {
       {children}
     </div>
   );
-}
 
-// ── Custom Tooltip ────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0.625rem 0.875rem", fontSize: 12 }}>
-      <div style={{ color: T.muted, marginBottom: 4 }}>{label}</div>
-      {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color, fontWeight: 600 }}>
-          {p.name}: {typeof p.value === "number" && p.value > 100 ? R$(p.value) : p.value}
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0.625rem 0.875rem", fontSize: 12 }}>
+        <div style={{ color: T.muted, marginBottom: 4 }}>{label}</div>
+        {payload.map((p, i) => (
+          <div key={i} style={{ color: p.color, fontWeight: 600 }}>
+            {p.name}: {typeof p.value === "number" && p.value > 100 ? R$(p.value) : p.value}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const PlanBar = ({ label, count, total, color }) => {
+    const pctVal = total > 0 ? (count / total) * 100 : 0;
+    return (
+      <div style={{ marginBottom: "0.875rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <span style={{ fontSize: 13, color: T.text }}>{label}</span>
+          <span style={{ fontSize: 12, color: T.muted }}>{count} cliente{count !== 1 ? "s" : ""} · {pctVal.toFixed(0)}%</span>
         </div>
-      ))}
-    </div>
-  );
-};
-
-// ── Plan Distribution Bar ────────────────────────────────────
-function PlanBar({ label, count, total, color }) {
-  const pctVal = total > 0 ? (count / total) * 100 : 0;
-  return (
-    <div style={{ marginBottom: "0.875rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 13, color: T.text }}>{label}</span>
-        <span style={{ fontSize: 12, color: T.muted }}>{count} cliente{count !== 1 ? "s" : ""} · {pctVal.toFixed(0)}%</span>
+        <div style={{ height: 6, background: T.surface, borderRadius: 99, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pctVal}%`, background: color, borderRadius: 99, transition: "width 0.6s ease" }} />
+        </div>
       </div>
-      <div style={{ height: 6, background: T.surface, borderRadius: 99, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pctVal}%`, background: color, borderRadius: 99, transition: "width 0.6s ease" }} />
-      </div>
-    </div>
-  );
-}
+    );
+  };
 
-// ── Activity Item ─────────────────────────────────────────────
-function ActivityItem({ text, badge, badgeColor, time, sub }) {
-  return (
+  const ActivityItem = ({ text, badge, badgeColor, time, sub }) => (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "0.75rem 0", borderBottom: `1px solid ${T.border}` }}>
       <div style={{ width: 32, height: 32, borderRadius: "50%", background: (badgeColor || T.accent) + "18", border: `1px solid ${(badgeColor || T.accent)}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <UserPlus size={13} color={badgeColor || T.accent} />
@@ -106,23 +103,6 @@ function ActivityItem({ text, badge, badgeColor, time, sub }) {
       </div>
     </div>
   );
-}
-
-export default function DashboardView({ metrics, loadingMet, onRefreshMetrics }) {
-  const m = metrics || {};
-
-  // Prepara dados dos gráficos
-  const growthData = Array.isArray(m.monthly_growth) ? m.monthly_growth : [];
-  const planDist   = Array.isArray(m.plan_distribution) ? m.plan_distribution : [];
-
-  const totalActive = +(m.active_carwashes || 0);
-  const planMap = {};
-  planDist.forEach(p => { planMap[p.plan] = +(p.count || 0); });
-
-  // Churn rate
-  const churnRate = m.total_carwashes > 0
-    ? ((+(m.cancelled_carwashes || 0) / +(m.total_carwashes || 1)) * 100)
-    : 0;
 
   return (
     <div>
@@ -130,7 +110,7 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics })
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(28px,5vw,42px)", letterSpacing: 2.5, margin: "0 0 4px", color: T.text }}>Dashboard</h1>
-          <div style={{ color: T.muted, fontSize: 13 }}>Visão executiva, limpa e estratégica da operação SaaS</div>
+          <div style={{ color: T.muted, fontSize: 13 }}>Visão executiva da operação SaaS</div>
         </div>
         <button onClick={onRefreshMetrics}
           style={{ display: "flex", alignItems: "center", gap: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "0.5rem 1rem", color: T.text, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
@@ -148,22 +128,20 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics })
         <>
           {/* ── KPI Grid ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
-            <KpiCard label="MRR"            value={R$(m.mrr)}                   icon={DollarSign}  color={T.success} glow />
-            <KpiCard label="ARR"            value={R$(m.arr)}                   icon={TrendingUp}  color={T.success} />
-            <KpiCard label="Clientes Ativos" value={m.active_carwashes ?? 0}   icon={Users}       color={T.accent}  glow sub="Assinaturas ativas" />
-            <KpiCard label="Churn"          value={pct(churnRate)}             icon={TrendingDown} color={T.danger}  sub="Cancelados / total" />
-            <KpiCard label="Inadimplência"  value={m.overdue_carwashes ?? 0}   icon={AlertCircle}  color={T.danger}  sub="Vencidas ou em atraso" />
-            <KpiCard label="Crescimento"    value={m.total_carwashes ?? 0}     icon={UserPlus}     color={T.info}    sub="Novas contas no último mês" />
+            <KpiCard label="MRR"             value={R$(m.mrr)}                  icon={DollarSign}  color={T.success} glow />
+            <KpiCard label="ARR"             value={R$(m.arr)}                  icon={TrendingUp}  color={T.success} />
+            <KpiCard label="Clientes Ativos" value={m.active_carwashes ?? 0}    icon={Users}       color={T.accent}  glow sub="Assinaturas ativas" />
+            <KpiCard label="Churn"           value={pct(churnRate)}             icon={TrendingDown} color={T.danger} sub="Cancelados / total" />
+            <KpiCard label="Inadimplência"   value={m.overdue_carwashes ?? 0}   icon={AlertCircle}  color={T.danger} sub="Vencidas ou em atraso" />
+            <KpiCard label="Crescimento"     value={m.total_carwashes ?? 0}     icon={UserPlus}     color={T.info}   sub="Novas contas no último mês" />
           </div>
 
           {/* ── Charts row ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.25rem", marginBottom: "1.25rem" }}>
-
-            {/* Crescimento de Receita */}
             <ChartCard title="Crescimento de Receita" sub="Evolução da receita registrada por mês">
               {growthData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200} style={{ background: "transparent" }}>
-                  <LineChart data={growthData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }} style={{ background: "transparent" }}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={growthData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
@@ -172,17 +150,16 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics })
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontSize: 13, background: "transparent" }}>
+                <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontSize: 13 }}>
                   Sem dados ainda
                 </div>
               )}
             </ChartCard>
 
-            {/* Novos Clientes */}
             <ChartCard title="Novos Clientes" sub="Lava rápidos cadastrados por mês">
               {growthData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200} style={{ background: "transparent" }}>
-                  <BarChart data={growthData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }} style={{ background: "transparent" }}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={growthData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -191,7 +168,7 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics })
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontSize: 13, background: "transparent" }}>
+                <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: T.muted, fontSize: 13 }}>
                   Sem dados ainda
                 </div>
               )}
@@ -200,8 +177,6 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics })
 
           {/* ── Bottom row ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.25rem" }}>
-
-            {/* Distribuição de Planos */}
             <ChartCard title="Distribuição de Planos Ativos" sub="Clientes ativos por modalidade de acesso">
               <PlanBar label="Plano mensal"    count={planMap["monthly"]   || 0} total={totalActive} color={T.accent} />
               <PlanBar label="Plano semestral" count={planMap["semestral"] || 0} total={totalActive} color={T.info} />
@@ -209,7 +184,6 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics })
               <PlanBar label="Acesso Cortesia" count={+(m.courtesy_carwashes || 0)} total={totalActive} color={T.danger} />
             </ChartCard>
 
-            {/* Atividade Recente */}
             <ChartCard title="Atividade Recente" sub="Resumo dos eventos mais importantes">
               {(m.recent_activity && m.recent_activity.length > 0) ? (
                 m.recent_activity.slice(0, 5).map((a, i) => (

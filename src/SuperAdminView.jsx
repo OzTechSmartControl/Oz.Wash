@@ -5,6 +5,7 @@ import {
   Car, Droplets,
 } from "lucide-react";
 import { supabase } from "./supabase";
+import { T_DARK, T_LIGHT } from "./config/theme";
 import DashboardView     from "./pages/superadmin/DashboardView";
 import ClientsView       from "./pages/superadmin/ClientsView";
 import FinanceView       from "./pages/superadmin/FinanceView";
@@ -20,16 +21,6 @@ import AnalyticsView     from "./pages/superadmin/AnalyticsView";
   document.head.appendChild(l);
 })();
 
-const T = {
-  bg: "#0b0b0e", surface: "#13131a", card: "#1a1a24", border: "#2a2a3a",
-  accent: "#4db8ff", accentGlow: "#4db8ff22",
-  text: "#ece8e0", muted: "#706b63", mutedLight: "#9a9590",
-  success: "#43d18a", successBg: "#43d18a18",
-  danger: "#f07070", dangerBg: "#f0707018",
-  info: "#60a5fa", infoBg: "#60a5fa18",
-  sidebar: "#0e0e14",
-};
-
 const NAV_ITEMS = [
   { id: "dashboard",     label: "Dashboard",    sub: "Visão geral",   icon: BarChart3  },
   { id: "clients",       label: "Clientes Ativos", sub: "Ativos",    icon: Users      },
@@ -41,6 +32,8 @@ const NAV_ITEMS = [
 ];
 
 export default function SuperAdminView({ token, profile, onLogout, themeMode, onToggleTheme }) {
+  const T = themeMode === "light" ? T_LIGHT : T_DARK;
+
   const [activeView,  setActiveView]  = useState("dashboard");
   const [metrics,     setMetrics]     = useState(null);
   const [loadingMet,  setLoadingMet]  = useState(true);
@@ -80,7 +73,7 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
             </div>
           </div>
           <div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>Oz.Wash</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 20, letterSpacing: 1.5, color: T.accent, lineHeight: 1 }}>Oz.Wash</div>
             <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>LavaRápido</div>
           </div>
         </div>
@@ -150,7 +143,7 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
     </div>
   );
 
-  const sharedProps = { token, supabase, metrics, loadingMet, onRefreshMetrics: loadMetrics };
+  const sharedProps = { token, supabase, metrics, loadingMet, onRefreshMetrics: loadMetrics, T };
 
   const renderView = () => {
     switch (activeView) {

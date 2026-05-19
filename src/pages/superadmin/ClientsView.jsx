@@ -1,21 +1,23 @@
 import { useEffect, useState, useCallback } from "react";
 import { Search, RefreshCw } from "lucide-react";
-import T from "../../config/theme";
+import { T_DARK } from "../../config/theme";
 import { fDate } from "../../utils/formatters";
-
-const inputSt = {
-  width: "100%", background: T.surface, border: `1px solid ${T.border}`,
-  borderRadius: 8, padding: "0.6rem 0.875rem", color: T.text, fontSize: 14,
-  outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans', sans-serif",
-};
-
-const Badge = ({ children, color = T.accent }) => (
-  <span style={{ background: color + "22", color, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
-);
 
 const planLabel = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual", courtesy: "Cortesia" };
 
-export default function ClientsView({ supabase }) {
+export default function ClientsView({ supabase, T: propT }) {
+  const T = propT || T_DARK;
+
+  const inputSt = {
+    width: "100%", background: T.surface, border: `1px solid ${T.border}`,
+    borderRadius: 8, padding: "0.6rem 0.875rem", color: T.text, fontSize: 14,
+    outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans', sans-serif",
+  };
+
+  const Badge = ({ children, color = T.accent }) => (
+    <span style={{ background: color + "22", color, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
+  );
+
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState("");
