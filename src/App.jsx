@@ -1470,13 +1470,15 @@ function MeuPlanoView({ token, carwashId, accessInfo }) {
 }
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────
-function LoginScreen({ onLogin, themeMode, onToggleTheme }) {
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [err,      setErr]      = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [forgot,   setForgot]   = useState(false);
+function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
+  const [email,     setEmail]     = useState("");
+  const [password,  setPassword]  = useState("");
+  const [showPass,  setShowPass]  = useState(false);
+  const [err,       setErr]       = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [forgot,    setForgot]    = useState(false);
   const [sentReset, setSentReset] = useState(false);
+  const [imgErr,    setImgErr]    = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -1505,50 +1507,154 @@ function LoginScreen({ onLogin, themeMode, onToggleTheme }) {
     setLoading(false);
   };
 
+  const isDark = themeMode !== "light";
+
+  const inpSt = {
+    width: "100%", background: T.surface, border: `1px solid ${T.border}`,
+    borderRadius: 10, padding: "0.75rem 1rem 0.75rem 2.5rem", color: T.text,
+    fontSize: 14, outline: "none", boxSizing: "border-box",
+    fontFamily: "'DM Sans', sans-serif", WebkitAppearance: "none", appearance: "none",
+  };
+
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 3, color: T.accent }}>Oz.LavaRápido</div>
-          <div style={{ color: T.muted, fontSize: 13, marginTop: 6 }}>Sistema de Gestão para Lava Rápidos</div>
-        </div>
-        <Card>
-          {!forgot ? (
-            <form onSubmit={handleLogin}>
-              <ErrorBar msg={err} />
-              <FInput label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-              <FInput label="Senha" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-              <Btn style={{ width: "100%", justifyContent: "center", marginTop: "0.5rem" }} disabled={loading}>
-                {loading ? "Entrando..." : "Entrar"}
-              </Btn>
-              <button type="button" onClick={() => setForgot(true)} style={{ display: "block", margin: "1rem auto 0", background: "none", border: "none", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-                Esqueci minha senha
-              </button>
-            </form>
-          ) : sentReset ? (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ color: T.success, fontSize: 14, marginBottom: "1rem" }}>E-mail de recuperação enviado!</div>
-              <Btn variant="ghost" onClick={() => { setForgot(false); setSentReset(false); }}>Voltar ao login</Btn>
-            </div>
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "1.5rem 1rem" }}>
+
+      {/* ── Logo circular ── */}
+      <div style={{ marginBottom: "1.5rem", textAlign: "center" }}>
+        <div style={{
+          width: 120, height: 120, borderRadius: "50%",
+          margin: "0 auto 1rem",
+          background: `radial-gradient(circle at 40% 40%, ${T.accent}18, transparent 70%)`,
+          border: `2px solid ${T.accent}44`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: `0 0 48px ${T.accent}28, 0 0 80px ${T.accent}10`,
+          overflow: "hidden", position: "relative",
+        }}>
+          {!imgErr ? (
+            <img
+              src="/icons/logo.png"
+              alt="Oz.Wash"
+              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+              onError={() => setImgErr(true)}
+            />
           ) : (
-            <form onSubmit={handleForgot}>
-              <ErrorBar msg={err} />
-              <FInput label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-              <Btn style={{ width: "100%", justifyContent: "center" }} disabled={loading}>
-                {loading ? "Enviando..." : "Enviar link de recuperação"}
-              </Btn>
-              <button type="button" onClick={() => setForgot(false)} style={{ display: "block", margin: "1rem auto 0", background: "none", border: "none", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            /* Fallback: ícone Car + Droplets */
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <Car size={38} color={T.accent} />
+              <Droplets size={16} color={T.accent} style={{ opacity: 0.7 }} />
+            </div>
+          )}
+        </div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: 3, color: T.accent, lineHeight: 1 }}>Oz.Wash</div>
+      </div>
+
+      {/* ── Card ── */}
+      <div style={{ width: "100%", maxWidth: 400, background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: "2rem", boxShadow: `0 8px 40px rgba(0,0,0,0.4)` }}>
+        {!forgot ? (
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 20, fontWeight: 600, color: T.text, fontFamily: "'DM Sans', sans-serif", lineHeight: 1 }}>Entrar</div>
+              <div style={{ color: T.muted, fontSize: 13, marginTop: 6 }}>Acesse sua conta para continuar.</div>
+            </div>
+
+            <ErrorBar msg={err} />
+
+            {/* E-mail */}
+            <div style={{ marginBottom: "1rem" }}>
+              <div style={{ fontSize: 11, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 600 }}>E-MAIL</div>
+              <div style={{ position: "relative" }}>
+                <Mail size={15} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                <input style={inpSt} type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="seu@email.com" />
+              </div>
+            </div>
+
+            {/* Senha */}
+            <div style={{ marginBottom: "0.375rem" }}>
+              <div style={{ fontSize: 11, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 600 }}>SENHA</div>
+              <div style={{ position: "relative" }}>
+                <Lock size={15} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                <input style={{ ...inpSt, paddingRight: "5rem" }} type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+                <button type="button" onClick={() => setShowPass(p => !p)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.accent, cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                  {showPass ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Esqueci senha */}
+            <div style={{ textAlign: "right", marginBottom: "1.25rem" }}>
+              <button type="button" onClick={() => setForgot(true)}
+                style={{ background: "none", border: "none", color: T.accent, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                Esqueceu sua senha?
+              </button>
+            </div>
+
+            {/* Botão entrar */}
+            <button type="submit" disabled={loading}
+              style={{ width: "100%", background: `linear-gradient(135deg, ${T.accent}, ${T.accent}cc)`, color: "#000", border: "none", borderRadius: 10, padding: "0.8rem", fontSize: 15, fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 4px 20px ${T.accent}33` }}>
+              {loading ? "Entrando..." : "Entrar"}
+            </button>
+
+            {/* Divider + Assinar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "1.25rem 0" }}>
+              <div style={{ flex: 1, height: 1, background: T.border }} />
+              <span style={{ color: T.muted, fontSize: 12 }}>ou</span>
+              <div style={{ flex: 1, height: 1, background: T.border }} />
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <span style={{ color: T.muted, fontSize: 13 }}>Não tem uma conta? </span>
+              <button type="button" onClick={onShowPlans}
+                style={{ background: "none", border: "none", color: T.accent, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, padding: 0 }}>
+                Assinar Plano
+              </button>
+            </div>
+          </form>
+
+        ) : sentReset ? (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: T.successBg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+              <Check size={24} color={T.success} />
+            </div>
+            <div style={{ color: T.success, fontWeight: 600, fontSize: 15, marginBottom: 6 }}>E-mail enviado!</div>
+            <div style={{ color: T.muted, fontSize: 13, marginBottom: "1.5rem" }}>Verifique sua caixa de entrada.</div>
+            <button onClick={() => { setForgot(false); setSentReset(false); }}
+              style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "0.6rem 1.5rem", color: T.text, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+              Voltar ao login
+            </button>
+          </div>
+
+        ) : (
+          <form onSubmit={handleForgot}>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: T.text, fontFamily: "'DM Sans', sans-serif" }}>Recuperar senha</div>
+              <div style={{ color: T.muted, fontSize: 13, marginTop: 6 }}>Enviaremos um link para seu e-mail.</div>
+            </div>
+            <ErrorBar msg={err} />
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div style={{ fontSize: 11, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 600 }}>E-MAIL</div>
+              <div style={{ position: "relative" }}>
+                <Mail size={15} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                <input style={inpSt} type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="seu@email.com" />
+              </div>
+            </div>
+            <button type="submit" disabled={loading}
+              style={{ width: "100%", background: `linear-gradient(135deg, ${T.accent}, ${T.accent}cc)`, color: "#000", border: "none", borderRadius: 10, padding: "0.8rem", fontSize: 15, fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              {loading ? "Enviando..." : "Enviar link de recuperação"}
+            </button>
+            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+              <button type="button" onClick={() => setForgot(false)}
+                style={{ background: "none", border: "none", color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
                 Voltar ao login
               </button>
-            </form>
-          )}
-        </Card>
-        <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
-          <ThemeToggleSwitch isDark={themeMode === "dark"} onToggle={onToggleTheme} />
-        </div>
-        <div style={{ textAlign: "center", marginTop: "1rem", color: T.muted, fontSize: 11 }}>
-          OzTech SmartControl © {new Date().getFullYear()}
-        </div>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
+        <ThemeToggleSwitch isDark={isDark} onToggle={onToggleTheme} />
+        <div style={{ color: T.muted, fontSize: 11, marginTop: "0.875rem" }}>Desenvolvido por OzTech SmartControl</div>
       </div>
     </div>
   );
@@ -1667,6 +1773,7 @@ export default function App() {
     return (
       <LoginScreen
         onLogin={handleLogin}
+        onShowPlans={() => setShowPlans(true)}
         themeMode={themeMode}
         onToggleTheme={toggleTheme}
       />
