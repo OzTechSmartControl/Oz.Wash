@@ -1522,30 +1522,31 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
       {/* ── Logo circular ── */}
       <div style={{ marginBottom: "1.5rem", textAlign: "center" }}>
         <div style={{
-          width: 120, height: 120, borderRadius: "50%",
-          margin: "0 auto 1rem",
-          background: `radial-gradient(circle at 40% 40%, ${T.accent}18, transparent 70%)`,
-          border: `2px solid ${T.accent}44`,
+          width: 160, height: 160, borderRadius: "50%",
+          margin: "0 auto 1.25rem",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 0 48px ${T.accent}28, 0 0 80px ${T.accent}10`,
+          boxShadow: `0 0 60px ${T.accent}30, 0 0 100px ${T.accent}12`,
           overflow: "hidden", position: "relative",
+          background: "transparent",
         }}>
           {!imgErr ? (
             <img
               src="/icons/logo.png"
               alt="Oz.Wash"
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+              style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%", display: "block" }}
               onError={() => setImgErr(true)}
             />
           ) : (
-            /* Fallback: ícone Car + Droplets */
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <Car size={38} color={T.accent} />
-              <Droplets size={16} color={T.accent} style={{ opacity: 0.7 }} />
+            <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: `radial-gradient(circle at 40% 40%, ${T.accent}18, transparent 70%)`, border: `2px solid ${T.accent}44`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <Car size={48} color={T.accent} />
+              <Droplets size={20} color={T.accent} style={{ opacity: 0.7 }} />
             </div>
           )}
         </div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: 3, color: T.accent, lineHeight: 1 }}>Oz.Wash</div>
+        {/* Nome: Oz.Wash com capitalização correta */}
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 32, letterSpacing: 2, lineHeight: 1, color: T.accent }}>
+          Oz.Wash
+        </div>
       </div>
 
       {/* ── Card ── */}

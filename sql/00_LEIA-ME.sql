@@ -1,0 +1,82 @@
+-- ============================================================
+--  OZ.LAVA RÁPIDO — Guia de Execução das Migrations SQL
+--  Supabase Project: https://lolvvhdixbfcrquisnpi.supabase.co
+-- ============================================================
+--
+--  COMO EXECUTAR:
+--  1. Acesse o Supabase Dashboard → SQL Editor
+--  2. Execute os arquivos NA ORDEM ABAIXO, um por vez.
+--  3. Aguarde cada execução finalizar antes de prosseguir.
+--
+--  ORDEM:
+--    01_tables.sql      → Cria todas as tabelas e índices
+--    02_rls.sql         → Ativa RLS + cria políticas de acesso
+--    03_functions.sql   → Funções SQL, triggers, RPCs
+--    04_seed_superadmin.sql → Configura o Super Admin
+--
+-- ============================================================
+--
+--  RESUMO DAS TABELAS:
+--
+--  carwashes        — Lava rápidos cadastrados na plataforma
+--  profiles         — Usuários (vinculados ao auth.users)
+--  employees        — Funcionários de cada lava rápido
+--  clients          — Clientes de cada lava rápido
+--  vehicles         — Veículos dos clientes
+--  services         — Catálogo de serviços (lavagem, polimento etc)
+--  products         — Produtos com controle de estoque
+--  service_orders   — Ordens de serviço (core do negócio)
+--  product_sales    — Vendas de produtos avulsas
+--  stock_movements  — Movimentações de entrada/saída de estoque
+--  expenses         — Despesas e custos
+--  subscriptions    — Planos ativos por lava rápido
+--  payment_checkouts— Histórico de pagamentos (Mercado Pago)
+--  courtesy_access  — Acessos cortesia concedidos pelo super admin
+--  platform_alerts  — Alertas da plataforma (super admin)
+--
+-- ============================================================
+--
+--  FUNÇÕES RPC DISPONÍVEIS:
+--
+--  can_register_with_email(p_email)
+--    → Retorna TRUE se e-mail tem pagamento pago não reivindicado
+--    → Chamada no Onboarding antes de criar a conta
+--
+--  claim_paid_subscription(p_email, p_carwash_id, p_plan)
+--    → Vincula checkout pago ao carwash + cria subscription
+--    → Chamada ao finalizar o Onboarding
+--
+--  current_user_access_status()
+--    → Retorna {has_access: bool, reason: text}
+--    → Chamada no App.jsx após login para liberar/bloquear acesso
+--
+--  has_active_access(p_carwash_id)
+--    → Versão simplificada (fallback) que retorna boolean
+--
+--  get_saas_metrics()
+--    → Retorna JSON com MRR, ARR, carwashes ativos, planos etc.
+--    → Chamada no Super Admin Dashboard
+--
+--  my_carwash_id()
+--    → Retorna o carwash_id do usuário logado (usado nas RLS)
+--
+-- ============================================================
+--
+--  FLUXO DE PAGAMENTO:
+--
+--  1. Cliente escolhe plano em PlansView.jsx
+--  2. É redirecionado ao Mercado Pago
+--  3. Após pagamento, webhook do MP chama seu backend que insere
+--     registro em payment_checkouts com status='paid'
+--  4. Cliente volta ao site e faz onboarding
+--  5. can_register_with_email() valida o e-mail
+--  6. Onboarding cria auth.user + carwash + chama claim_paid_subscription()
+--  7. Sistema está pronto para uso
+--
+--  ENQUANTO O WEBHOOK NÃO ESTÁ CONFIGURADO:
+--  Para testar, insira manualmente no SQL Editor:
+--
+--  INSERT INTO payment_checkouts (email, plan, amount, status, paid_at)
+--  VALUES ('seu@email.com', 'annual', 699.90, 'paid', NOW());
+--
+-- ============================================================
