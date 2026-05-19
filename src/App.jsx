@@ -1519,21 +1519,20 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "1.5rem 1rem" }}>
 
-      {/* ── Logo circular ── */}
+      {/* ── Logo ── */}
       <div style={{ marginBottom: "1.5rem", textAlign: "center" }}>
         <div style={{
-          width: 160, height: 160, borderRadius: "50%",
+          width: 160, height: 160,
           margin: "0 auto 1.25rem",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 0 60px ${T.accent}30, 0 0 100px ${T.accent}12`,
-          overflow: "hidden", position: "relative",
-          background: "transparent",
+          filter: `drop-shadow(0 0 28px ${T.accent}55) drop-shadow(0 0 60px ${T.accent}22)`,
+          position: "relative",
         }}>
           {!imgErr ? (
             <img
               src="/icons/logo.png"
               alt="Oz.Wash"
-              style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%", display: "block" }}
+              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
               onError={() => setImgErr(true)}
             />
           ) : (
