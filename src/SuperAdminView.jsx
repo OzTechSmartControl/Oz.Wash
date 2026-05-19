@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3, Bell, CreditCard, DollarSign,
   Gift, TrendingUp, Users, LogOut, Menu, X, Sun, Moon,
-  Car, Droplets,
+  ChevronLeft,
 } from "lucide-react";
 import { supabase } from "./supabase";
 import { T_DARK, T_LIGHT } from "./config/theme";
@@ -22,23 +22,26 @@ import AnalyticsView     from "./pages/superadmin/AnalyticsView";
 })();
 
 const NAV_ITEMS = [
-  { id: "dashboard",     label: "Dashboard",    sub: "Visão geral",   icon: BarChart3  },
-  { id: "clients",       label: "Clientes Ativos", sub: "Ativos",    icon: Users      },
-  { id: "finance",       label: "Financeiro",   sub: "Receita",       icon: DollarSign },
-  { id: "subscriptions", label: "Assinaturas",  sub: "Cobrança",      icon: CreditCard },
-  { id: "courtesy",      label: "Cortesias",    sub: "Acessos",       icon: Gift       },
-  { id: "alerts",        label: "Alertas",      sub: "Eventos",       icon: Bell       },
-  { id: "analytics",     label: "Analytics",    sub: "Inteligência",  icon: TrendingUp },
+  { id: "dashboard",     label: "Dashboard",       sub: "Visão geral",   icon: BarChart3  },
+  { id: "clients",       label: "Clientes Ativos",  sub: "Ativos",        icon: Users      },
+  { id: "finance",       label: "Financeiro",       sub: "Receita",       icon: DollarSign },
+  { id: "subscriptions", label: "Assinaturas",      sub: "Cobrança",      icon: CreditCard },
+  { id: "courtesy",      label: "Cortesias",        sub: "Acessos",       icon: Gift       },
+  { id: "alerts",        label: "Alertas",          sub: "Eventos",       icon: Bell       },
+  { id: "analytics",     label: "Analytics",        sub: "Inteligência",  icon: TrendingUp },
 ];
+
+const SIDEBAR_W = 248;
 
 export default function SuperAdminView({ token, profile, onLogout, themeMode, onToggleTheme }) {
   const T = themeMode === "light" ? T_LIGHT : T_DARK;
 
-  const [activeView,  setActiveView]  = useState("dashboard");
-  const [metrics,     setMetrics]     = useState(null);
-  const [loadingMet,  setLoadingMet]  = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
+  const [activeView,       setActiveView]       = useState("dashboard");
+  const [metrics,          setMetrics]          = useState(null);
+  const [loadingMet,       setLoadingMet]       = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [collapsed,        setCollapsed]        = useState(false);   // desktop collapse
+  const [isMobile,         setIsMobile]         = useState(window.innerWidth < 768);
 
   useEffect(() => {
     const fn = () => setIsMobile(window.innerWidth < 768);
@@ -58,15 +61,60 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
   useEffect(() => { loadMetrics(); }, []);
 
   const isDark = themeMode !== "light";
+  const navigate = (id) => {
+    setActiveView(id);
+    if (isMobile) setMobileSidebarOpen(false);
+  };
 
+  // ── Sidebar content ─────────────────────────────────────────
   const sidebarContent = (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.sidebar, borderRight: `1px solid ${T.border}` }}>
+    <div style={{
+      display: "flex", flexDirection: "column", height: "100%",
+      background: T.sidebar, borderRight: `1px solid ${T.border}`,
+      width: SIDEBAR_W, overflow: "hidden",
+    }}>
 
-      {/* ── Logo ── */}
-      <div style={{ padding: "1.5rem 1.25rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: "1rem" }}>
-          {/* Logo imagem real */}
-          <div style={{ width: 48, height: 48, flexShrink: 0, filter: `drop-shadow(0 0 10px ${T.accent}55)` }}>
+      {/* ── Header: logo + collapse btn ── */}
+      <div style={{ padding: "1.25rem 1rem 1rem", borderBottom: `1px solid ${T.border}`, position: "relative" }}>
+
+        {/* Collapse button (desktop only) */}
+        {!isMobile && (
+          <button
+            onClick={() => setCollapsed(true)}
+            title="Ocultar menu"
+            style={{
+              position: "absolute", top: 12, right: 10,
+              width: 28, height: 28, borderRadius: 8,
+              background: T.surface, border: `1px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: T.muted, flexShrink: 0,
+              transition: "all 0.15s",
+            }}>
+            <ChevronLeft size={14} />
+          </button>
+        )}
+
+        {/* Mobile close button */}
+        {isMobile && (
+          <button
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{
+              position: "absolute", top: 12, right: 10,
+              width: 28, height: 28, borderRadius: 8,
+              background: T.surface, border: `1px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: T.muted,
+            }}>
+            <X size={14} />
+          </button>
+        )}
+
+        {/* Logo centralizada grande */}
+        <div style={{ textAlign: "center", paddingTop: "0.25rem" }}>
+          <div style={{
+            width: 92, height: 92, margin: "0 auto 0.75rem",
+            filter: `drop-shadow(0 0 18px ${T.accent}60) drop-shadow(0 0 36px ${T.accent}25)`,
+          }}>
             <img
               src="/icons/logo.png"
               alt="Oz.Wash"
@@ -77,38 +125,49 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
               }}
             />
           </div>
-          <div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 20, letterSpacing: 1.5, color: T.accent, lineHeight: 1 }}>Oz.Wash</div>
-            <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>LavaRápido</div>
-          </div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+            fontSize: 22, letterSpacing: 1.5, color: T.accent, lineHeight: 1,
+          }}>Oz.Wash</div>
+          <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>LavaRápido</div>
         </div>
 
-        {/* Badge SUPER ADMIN */}
-        <div style={{ background: `${T.success}18`, border: `1px solid ${T.success}44`, borderRadius: 8, padding: "0.5rem 0.875rem" }}>
+        {/* SUPER ADMIN badge */}
+        <div style={{
+          marginTop: "1rem",
+          background: `${T.success}18`, border: `1px solid ${T.success}44`,
+          borderRadius: 8, padding: "0.45rem 0.75rem", textAlign: "center",
+        }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: T.success, letterSpacing: 0.8 }}>⚡ SUPER ADMIN</div>
-          <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Controle global da plataforma.</div>
+          <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>Controle global da plataforma</div>
         </div>
       </div>
 
       {/* ── Nav ── */}
-      <nav style={{ flex: 1, padding: "0.875rem 0.625rem", overflowY: "auto" }}>
+      <nav style={{ flex: 1, padding: "0.75rem 0.5rem", overflowY: "auto" }}>
         {NAV_ITEMS.map(({ id, label, sub, icon: Icon }) => {
           const isActive = activeView === id;
           return (
             <button key={id}
-              onClick={() => { setActiveView(id); if (isMobile) setSidebarOpen(false); }}
+              onClick={() => navigate(id)}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 10,
-                padding: "0.6rem 0.75rem", borderRadius: 10, border: "none", cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif", marginBottom: 3,
+                padding: "0.55rem 0.625rem", borderRadius: 10, border: "none",
+                cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 2,
                 background: isActive ? `${T.accent}18` : "transparent",
                 transition: "background 0.15s",
               }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: isActive ? `${T.accent}28` : `${T.surface}`, border: `1px solid ${isActive ? T.accent + "44" : T.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                background: isActive ? `${T.accent}28` : T.surface,
+                border: `1px solid ${isActive ? T.accent + "55" : T.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.15s",
+              }}>
                 <Icon size={15} color={isActive ? T.accent : T.muted} />
               </div>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? T.accent : T.text, lineHeight: 1.2 }}>{label}</div>
+              <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? T.accent : T.text, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
                 <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>{sub}</div>
               </div>
               {isActive && <div style={{ width: 3, height: 18, borderRadius: 99, background: T.accent, flexShrink: 0 }} />}
@@ -118,10 +177,21 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
       </nav>
 
       {/* ── Footer ── */}
-      <div style={{ padding: "1rem 1.25rem", borderTop: `1px solid ${T.border}` }}>
-        {/* Theme toggle */}
+      <div style={{ padding: "0.875rem 1rem", borderTop: `1px solid ${T.border}` }}>
+
+        {/* Email */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, color: T.muted, marginBottom: 1 }}>Logado como</div>
+            <div style={{ fontSize: 11, color: T.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {profile?.email}
+            </div>
+          </div>
+        </div>
+
+        {/* Modo Escuro */}
         {onToggleTheme && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
             <span style={{ fontSize: 12, color: T.muted, fontFamily: "'DM Sans', sans-serif" }}>Modo Escuro</span>
             <button onClick={onToggleTheme}
               style={{ position: "relative", width: 44, height: 24, borderRadius: 999, background: isDark ? T.accent : T.border, border: "none", cursor: "pointer", transition: "background 0.3s", padding: 0, display: "flex", alignItems: "center" }}>
@@ -132,16 +202,9 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
           </div>
         )}
 
-        {/* Email */}
-        <div style={{ fontSize: 11, color: T.muted, marginBottom: "0.625rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          Logado como
-        </div>
-        <div style={{ fontSize: 12, color: T.mutedLight || T.muted, marginBottom: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>
-          {profile?.email}
-        </div>
-
+        {/* Sair */}
         <button onClick={onLogout}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif", padding: 0 }}>
+          style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: `${T.danger}10`, border: `1px solid ${T.danger}22`, borderRadius: 8, padding: "0.45rem 0.75rem", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s" }}>
           <LogOut size={13} />Sair
         </button>
       </div>
@@ -166,21 +229,36 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: T.bg, color: T.text, fontFamily: "'DM Sans', sans-serif" }}>
 
-      {/* ── Sidebar desktop ── */}
+      {/* ── Desktop Sidebar ── */}
       {!isMobile && (
-        <div style={{ width: 230, flexShrink: 0, height: "100vh", position: "sticky", top: 0 }}>
+        <div style={{
+          width: collapsed ? 0 : SIDEBAR_W,
+          flexShrink: 0,
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflow: "hidden",
+          transition: "width 0.28s cubic-bezier(.4,0,.2,1)",
+        }}>
           {sidebarContent}
         </div>
       )}
 
-      {/* ── Sidebar mobile overlay ── */}
+      {/* ── Mobile overlay ── */}
       {isMobile && (
         <>
-          {sidebarOpen && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 199, backdropFilter: "blur(2px)" }}
-              onClick={() => setSidebarOpen(false)} />
+          {mobileSidebarOpen && (
+            <div
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 199, backdropFilter: "blur(2px)" }}
+              onClick={() => setMobileSidebarOpen(false)}
+            />
           )}
-          <div style={{ position: "fixed", left: 0, top: 0, bottom: 0, width: 250, zIndex: 200, transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.25s cubic-bezier(.4,0,.2,1)" }}>
+          <div style={{
+            position: "fixed", left: 0, top: 0, bottom: 0,
+            width: SIDEBAR_W, zIndex: 200,
+            transform: mobileSidebarOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.25s cubic-bezier(.4,0,.2,1)",
+          }}>
             {sidebarContent}
           </div>
         </>
@@ -188,14 +266,45 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
 
       {/* ── Main content ── */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        {/* Mobile topbar */}
-        {isMobile && (
-          <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem", borderBottom: `1px solid ${T.border}`, background: T.sidebar, flexShrink: 0 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", marginRight: 12 }}><Menu size={20} /></button>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: T.accent }}>Oz.Wash</div>
-            <div style={{ marginLeft: 8, fontSize: 10, color: T.success, fontWeight: 700, background: `${T.success}18`, padding: "2px 8px", borderRadius: 20 }}>SUPER ADMIN</div>
+
+        {/* Topbar (mobile + desktop collapsed) */}
+        <div style={{
+          display: "flex", alignItems: "center",
+          padding: "0.75rem 1.25rem",
+          borderBottom: `1px solid ${T.border}`,
+          background: T.sidebar, flexShrink: 0,
+          gap: 12,
+        }}>
+          {/* Hamburger / expand button */}
+          <button
+            onClick={() => isMobile ? setMobileSidebarOpen(true) : setCollapsed(false)}
+            style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: T.surface, border: `1px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: T.text, flexShrink: 0,
+              // Hide on desktop when sidebar is open
+              opacity: (!isMobile && !collapsed) ? 0 : 1,
+              pointerEvents: (!isMobile && !collapsed) ? "none" : "auto",
+              transition: "opacity 0.2s",
+            }}>
+            <Menu size={17} />
+          </button>
+
+          {/* Page title / breadcrumb */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, color: T.accent }}>
+              {NAV_ITEMS.find(n => n.id === activeView)?.label || "Dashboard"}
+            </div>
           </div>
-        )}
+
+          {/* Right: mobile brand */}
+          {isMobile && (
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 15, color: T.accent }}>
+              Oz.Wash
+            </div>
+          )}
+        </div>
 
         <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2.5rem", width: "100%", minWidth: 0 }}>
           {renderView()}
