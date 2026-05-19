@@ -65,12 +65,17 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
       {/* ── Logo ── */}
       <div style={{ padding: "1.5rem 1.25rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: "1rem" }}>
-          {/* Logo circular com ícones */}
-          <div style={{ width: 48, height: 48, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}22, ${T.accent}08)`, border: `2px solid ${T.accent}55`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", boxShadow: `0 0 16px ${T.accent}22` }}>
-            <Car size={20} color={T.accent} />
-            <div style={{ position: "absolute", bottom: 6, right: 5 }}>
-              <Droplets size={10} color={T.accent} />
-            </div>
+          {/* Logo imagem real */}
+          <div style={{ width: 48, height: 48, flexShrink: 0, filter: `drop-shadow(0 0 10px ${T.accent}55)` }}>
+            <img
+              src="/icons/logo.png"
+              alt="Oz.Wash"
+              style={{
+                width: "100%", height: "100%", objectFit: "cover", display: "block",
+                maskImage: "radial-gradient(circle, black 42%, transparent 50%)",
+                WebkitMaskImage: "radial-gradient(circle, black 42%, transparent 50%)",
+              }}
+            />
           </div>
           <div>
             <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 20, letterSpacing: 1.5, color: T.accent, lineHeight: 1 }}>Oz.Wash</div>
@@ -192,7 +197,7 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
           </div>
         )}
 
-        <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2.5rem", maxWidth: 1280, width: "100%" }}>
+        <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2.5rem", width: "100%", minWidth: 0 }}>
           {renderView()}
         </main>
       </div>
