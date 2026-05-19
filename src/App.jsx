@@ -1535,9 +1535,10 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
                 width: "100%", height: "100%",
                 objectFit: "cover",
                 display: "block",
-                /* clipPath corta geometricamente (sem antialiasing),
-                   48% = corta ~4px da borda, eliminando o anel branco */
-                clipPath: "circle(48% at 50% 50%)",
+                /* maskImage cria fade radial: opaco até 42%, some em 50%
+                   → dissolve o anel branco/prateado sem corte brusco */
+                maskImage: "radial-gradient(circle, black 42%, transparent 50%)",
+                WebkitMaskImage: "radial-gradient(circle, black 42%, transparent 50%)",
               }}
               onError={() => setImgErr(true)}
             />
