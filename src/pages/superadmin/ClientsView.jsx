@@ -164,14 +164,14 @@ export default function ClientsView({ supabase, T: propT }) {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.75rem", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
         <KpiCard label="Total Ativos"  value={totalAtivos} icon={Users}      color={T.success} />
         <KpiCard label="Assinantes"    value={activeSubs}  icon={CreditCard} color={T.accent}  />
         <KpiCard label="Cortesias"     value={activeCourt} icon={Gift}        color={T.info}    />
       </div>
 
       {/* ── Search + Filters ── */}
-      <div style={{ display: "flex", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.09s both" }}>
         <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
           <Search size={14} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
           <input
@@ -198,7 +198,7 @@ export default function ClientsView({ supabase, T: propT }) {
       {loading ? (
         <div style={{ color: T.muted, padding: "2rem", textAlign: "center" }}>Carregando...</div>
       ) : (
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.16s both" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>

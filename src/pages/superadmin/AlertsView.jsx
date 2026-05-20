@@ -79,7 +79,7 @@ export default function AlertsView({ supabase, T: propT }) {
 
       ) : alerts.length === 0 ? (
         /* Empty state */
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "3rem 2rem", textAlign: "center" }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "3rem 2rem", textAlign: "center", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
           <CheckCircle size={36} color={T.success} style={{ marginBottom: "0.875rem" }} />
           <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 4 }}>Sem alertas ativos</div>
           <div style={{ fontSize: 13, color: T.muted }}>A plataforma está operando normalmente.</div>
@@ -87,7 +87,7 @@ export default function AlertsView({ supabase, T: propT }) {
 
       ) : (
         /* Alert list */
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
           {alerts.map((a, idx) => {
             const cfg         = alertConfig(a.level, a.type);
             const IconComp    = cfg.icon;

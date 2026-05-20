@@ -214,7 +214,7 @@ export default function CourtesyView({ supabase, T: propT }) {
       </div>
 
       {/* ── KPIs ── */}
-      <div style={{ display: "flex", gap: "0.875rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "0.875rem", marginBottom: "1.5rem", flexWrap: "wrap", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
         <KpiCard label="Total Concedidas" value={kpis.total}     color={T.accent}  icon={Gift}  />
         <KpiCard label="Ativas"           value={kpis.active}    color={T.success} icon={Check} />
         <KpiCard label="Expiradas"        value={kpis.expired}   color="#f59e0b"   icon={Clock} />
@@ -223,7 +223,7 @@ export default function CourtesyView({ supabase, T: propT }) {
       </div>
 
       {/* ── Busca + Filtros ── */}
-      <div style={{ display: "flex", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap", alignItems: "center", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.09s both" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <Search size={14} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
           <input
@@ -245,7 +245,7 @@ export default function CourtesyView({ supabase, T: propT }) {
       {loading ? (
         <div style={{ color: T.muted, padding: "2rem 0" }}>Carregando...</div>
       ) : (
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.16s both" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>

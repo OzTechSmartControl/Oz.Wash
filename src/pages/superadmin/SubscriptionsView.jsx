@@ -111,7 +111,7 @@ export default function SubscriptionsView({ supabase, T: propT }) {
 
       {/* ── KPI Cards ── */}
       {!loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: "1rem", marginBottom: "1.5rem", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
           <KpiCard label="Ativas"        value={ativas}        icon={CreditCard}    color={T.success} />
           <KpiCard label="Inadimplentes" value={inadimplentes} icon={AlertTriangle} color={T.warn}    />
           <KpiCard label="Canceladas"    value={canceladas}    icon={XCircle}       color={T.danger}  />
@@ -123,7 +123,7 @@ export default function SubscriptionsView({ supabase, T: propT }) {
       {loading ? (
         <div style={{ color: T.muted, padding: "2rem", textAlign: "center" }}>Carregando...</div>
       ) : (
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.09s both" }}>
 
           {/* Search bar inside card header */}
           <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end" }}>

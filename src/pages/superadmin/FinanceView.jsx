@@ -160,7 +160,7 @@ export default function FinanceView({ supabase, T: propT }) {
 
       {/* ── 6 KPI Cards ── */}
       {!loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: "1rem", marginBottom: "1.5rem", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
           <KpiCard label="Receita Mensal"     value={money(mrr)}         icon={DollarSign}    color={T.success} />
           <KpiCard label="Receita Prevista"   value={money(arr)}         icon={TrendingUp}    color={T.accent}  sub="ARR projetado" />
           <KpiCard label="Ticket Médio"       value={money(ticketMedio)} icon={Activity}      color={T.accent}  />
@@ -172,7 +172,7 @@ export default function FinanceView({ supabase, T: propT }) {
 
       {/* ── Charts Row ── */}
       {!loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem", marginBottom: "1.5rem", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.09s both" }}>
 
           {/* Receita Mensal – bar chart */}
           <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "1.25rem" }}>
@@ -238,7 +238,7 @@ export default function FinanceView({ supabase, T: propT }) {
 
       {/* ── Pagamentos Recentes ── */}
       {!loading && (
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.16s both" }}>
 
           {/* Section header */}
           <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>

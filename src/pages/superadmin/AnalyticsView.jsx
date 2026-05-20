@@ -61,14 +61,14 @@ export default function AnalyticsView({ supabase, metrics, T: propT }) {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "1.75rem", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0s both" }}>
         <StatCard label="Total Clientes"  value={m.total_carwashes   || 0} color={T.accent}  />
         <StatCard label="Ativos"          value={m.active_carwashes  || 0} color={T.success} />
         <StatCard label="Inadimplentes"   value={m.overdue_carwashes || 0} color={T.danger}  />
         <StatCard label="MRR Estimado"    value={money(m.mrr || 0)}        color={T.success} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem", animation: "cardIn 0.45s cubic-bezier(.4,0,.2,1) 0.09s both" }}>
         {/* Crescimento mensal */}
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "1.5rem" }}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 1.5, color: T.text, marginBottom: "1.25rem" }}>Novos Clientes / Mês</div>
