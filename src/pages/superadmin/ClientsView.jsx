@@ -34,7 +34,7 @@ export default function ClientsView({ supabase, T: propT }) {
           .order("created_at", { ascending: false }),
         supabase
           .from("courtesy_access")
-          .select("id, carwash_id, expires_at, created_at, revoked, reason, carwashes(name, id)")
+          .select("id, granted_to_email, expires_at, created_at, revoked_at, carwashes(name, id)")
           .order("created_at", { ascending: false }),
       ]);
       setSubs(subsRes.data || []);
@@ -54,7 +54,7 @@ export default function ClientsView({ supabase, T: propT }) {
   };
 
   const statusOfCourt = (c) => {
-    if (c.revoked) return "revoked";
+    if (c.revoked_at) return "revoked";
     if (c.expires_at && new Date(c.expires_at) < now) return "expired";
     return "active";
   };
@@ -75,7 +75,7 @@ export default function ClientsView({ supabase, T: propT }) {
       })),
     ...courtesies.map(c => ({
       id:      "court_" + c.id,
-      email:   c.carwashes?.name || `Lava-Rápido #${c.carwash_id}`,
+      email:   c.granted_to_email || "—",
       carwash: c.carwashes?.name || null,
       tipo:    "courtesy",
       plan:    c.expires_at ? "prazo" : "indefinido",

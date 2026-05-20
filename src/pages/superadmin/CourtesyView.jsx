@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Check, X, RefreshCw, Infinity, Clock, Gift, Search, Ban } from "lucide-react";
+import { Plus, Check, X, RefreshCw, Infinity, Clock, Gift, Search, Mail, Ban } from "lucide-react";
 import { T_DARK } from "../../config/theme";
 import { fDate } from "../../utils/formatters";
 
@@ -12,7 +12,7 @@ const fDatetime = (s) => {
 export default function CourtesyView({ supabase, T: propT }) {
   const T = propT || T_DARK;
 
-  /* ── Styles ── */
+  // ── Styles ───────────────────────────────────────────────────
   const inputSt = {
     width: "100%", background: T.surface, border: `1px solid ${T.border}`,
     borderRadius: 8, padding: "0.65rem 0.875rem", color: T.text, fontSize: 14,
@@ -40,52 +40,45 @@ export default function CourtesyView({ supabase, T: propT }) {
     </div>
   );
 
-  /* ── State ── */
+  // ── State ────────────────────────────────────────────────────
   const [courtesies,  setCourtesies]  = useState([]);
-  const [carwashes,   setCarwashes]   = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [modal,       setModal]       = useState(false);
   const [revokeModal, setRevokeModal] = useState(false);
-  const [revokeId,    setRevokeId]    = useState("");
+  const [revokeEmail, setRevokeEmail] = useState("");
   const [err,         setErr]         = useState("");
-  const [filter,      setFilter]      = useState("all");
+  const [filter,      setFilter]      = useState("all"); // all | active | expired | revoked
   const [search,      setSearch]      = useState("");
-  const [form, setForm] = useState({ carwashId: "", accessType: "indefinido", expiresAt: "", reason: "" });
+  const [form, setForm] = useState({ email: "", accessType: "indefinido", expiresAt: "", notes: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [courtRes, cwRes] = await Promise.all([
-        supabase
-          .from("courtesy_access")
-          .select("id, carwash_id, reason, expires_at, revoked, created_at, carwashes(name, id)")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("carwashes")
-          .select("id, name")
-          .order("name"),
-      ]);
-      setCourtesies(courtRes.data || []);
-      setCarwashes(cwRes.data   || []);
+      const { data } = await supabase
+        .from("courtesy_access")
+        .select("*, carwashes(name, id)")
+        .order("created_at", { ascending: false });
+      setCourtesies(data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => { load(); }, [load]);
 
-  /* ── Computed ── */
+  // ── Computed ─────────────────────────────────────────────────
   const now = new Date();
   const statusOf = (c) => {
-    if (c.revoked) return "revoked";
+    if (c.revoked_at) return "revoked";
     if (c.expires_at && new Date(c.expires_at) < now) return "expired";
     return "active";
   };
 
   const kpis = {
-    total:    courtesies.length,
-    active:   courtesies.filter(c => statusOf(c) === "active").length,
-    expired:  courtesies.filter(c => statusOf(c) === "expired").length,
-    revoked:  courtesies.filter(c => c.revoked).length,
+    total:     courtesies.length,
+    active:    courtesies.filter(c => statusOf(c) === "active").length,
+    expired:   courtesies.filter(c => statusOf(c) === "expired").length,
+    revoked:   courtesies.filter(c => statusOf(c) === "revoked").length,
+    converted: courtesies.filter(c => c.carwash_id).length,
   };
 
   const filtered = courtesies.filter(c => {
@@ -95,30 +88,33 @@ export default function CourtesyView({ supabase, T: propT }) {
     if (filter === "revoked" && s !== "revoked") return false;
     if (search) {
       const q = search.toLowerCase();
-      return (c.carwashes?.name || "").toLowerCase().includes(q)
-          || (c.reason || "").toLowerCase().includes(q);
+      return (c.granted_to_email || "").toLowerCase().includes(q)
+          || (c.notes || "").toLowerCase().includes(q)
+          || (c.carwashes?.name || "").toLowerCase().includes(q);
     }
     return true;
   });
 
-  /* ── Actions ── */
+  // ── Actions ──────────────────────────────────────────────────
   const openModal = () => {
-    setForm({ carwashId: "", accessType: "indefinido", expiresAt: "", reason: "" });
+    setForm({ email: "", accessType: "indefinido", expiresAt: "", notes: "" });
     setErr(""); setModal(true);
   };
 
   const grant = async () => {
     setErr("");
-    if (!form.carwashId) { setErr("Selecione um lava-rápido."); return; }
+    if (!form.email.trim()) { setErr("E-mail é obrigatório."); return; }
     if (form.accessType === "prazo" && !form.expiresAt) { setErr("Selecione a data de expiração."); return; }
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const expiresAt = form.accessType === "prazo" ? form.expiresAt : null;
+      const expiresAt = form.accessType === "prazo"
+        ? new Date(form.expiresAt + "T23:59:59").toISOString()
+        : null;
       const { error } = await supabase.from("courtesy_access").insert({
-        carwash_id: Number(form.carwashId),
-        reason:     form.reason || null,
-        expires_at: expiresAt,
-        granted_by: user?.id || null,
+        granted_to_email: form.email.trim().toLowerCase(),
+        expires_at:       expiresAt,
+        notes:            form.notes || null,
+        granted_by:       user?.id || null,
       });
       if (error) throw new Error(error.message);
       setModal(false); load();
@@ -127,21 +123,24 @@ export default function CourtesyView({ supabase, T: propT }) {
 
   const revoke = async (id) => {
     if (!confirm("Revogar esta cortesia?")) return;
-    await supabase.from("courtesy_access").update({ revoked: true }).eq("id", id);
+    await supabase
+      .from("courtesy_access")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", id);
     load();
   };
 
-  const revokeByCarwash = async () => {
-    if (!revokeId) return;
+  const revokeByEmail = async () => {
+    if (!revokeEmail.trim()) return;
     await supabase
       .from("courtesy_access")
-      .update({ revoked: true })
-      .eq("carwash_id", Number(revokeId))
-      .eq("revoked", false);
-    setRevokeModal(false); setRevokeId(""); load();
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("granted_to_email", revokeEmail.trim().toLowerCase())
+      .is("revoked_at", null);
+    setRevokeModal(false); setRevokeEmail(""); load();
   };
 
-  /* ── Helpers ── */
+  // ── Helpers ──────────────────────────────────────────────────
   const toggleBtn = (active) => ({
     flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
     padding: "0.55rem 0.75rem", borderRadius: 8, cursor: "pointer",
@@ -173,8 +172,6 @@ export default function CourtesyView({ supabase, T: propT }) {
     return <span style={{ background: color + "22", color, borderRadius: 5, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>{label}</span>;
   };
 
-  const selSt = { ...inputSt, cursor: "pointer" };
-
   return (
     <div>
       {/* ── Header ── */}
@@ -204,10 +201,11 @@ export default function CourtesyView({ supabase, T: propT }) {
 
       {/* ── KPIs ── */}
       <div style={{ display: "flex", gap: "0.875rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <KpiCard label="Total Concedidas" value={kpis.total}   color={T.accent}  icon={Gift}  />
-        <KpiCard label="Ativas"           value={kpis.active}  color={T.success} icon={Check} />
-        <KpiCard label="Expiradas"        value={kpis.expired} color="#f59e0b"   icon={Clock} />
-        <KpiCard label="Revogadas"        value={kpis.revoked} color={T.danger}  icon={Ban}   />
+        <KpiCard label="Total Concedidas" value={kpis.total}     color={T.accent}  icon={Gift}  />
+        <KpiCard label="Ativas"           value={kpis.active}    color={T.success} icon={Check} />
+        <KpiCard label="Expiradas"        value={kpis.expired}   color="#f59e0b"   icon={Clock} />
+        <KpiCard label="Revogadas"        value={kpis.revoked}   color={T.danger}  icon={Ban}   />
+        <KpiCard label="Convertidas"      value={kpis.converted} color={T.info}    icon={Gift}  sub="Onboarding feito" />
       </div>
 
       {/* ── Busca + Filtros ── */}
@@ -216,7 +214,7 @@ export default function CourtesyView({ supabase, T: propT }) {
           <Search size={14} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
           <input
             style={{ ...inputSt, paddingLeft: "2.25rem" }}
-            placeholder="Buscar por lava-rápido ou motivo..."
+            placeholder="Buscar por e-mail, observação ou lava-rápido..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -238,7 +236,7 @@ export default function CourtesyView({ supabase, T: propT }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                  {["Lava-Rápido", "Duração", "Status", "Criado em", "Expiração", "Motivo", "Ações"].map(h => (
+                  {["E-mail", "Duração", "Status", "Criado em", "Expiração", "Lava-Rápido", "Ações"].map(h => (
                     <th key={h} style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: 10, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -250,13 +248,13 @@ export default function CourtesyView({ supabase, T: propT }) {
                   return (
                     <tr key={c.id} style={{ borderBottom: `1px solid ${T.border}` }}>
 
-                      {/* Lava-Rápido */}
+                      {/* E-mail */}
                       <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.text, fontWeight: 500 }}>
-                        🚗 {c.carwashes?.name || `ID ${c.carwash_id}`}
+                        {c.granted_to_email}
                       </td>
 
                       {/* Duração */}
-                      <td style={{ padding: "0.875rem 1rem", fontSize: 13, whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.muted, whiteSpace: "nowrap" }}>
                         {isIndefinido
                           ? <span style={{ color: T.info }}>∞ Indeterminado</span>
                           : <span style={{ color: T.accent }}>⏱ Prazo</span>}
@@ -276,23 +274,35 @@ export default function CourtesyView({ supabase, T: propT }) {
                       <td style={{ padding: "0.875rem 1rem", fontSize: 12, whiteSpace: "nowrap" }}>
                         {isIndefinido
                           ? <span style={{ color: T.success }}>Sem expiração</span>
-                          : <span style={{ color: "#f59e0b" }}>{fDate(c.expires_at)}</span>}
+                          : <span style={{ color: "#f59e0b" }}>{fDate(c.expires_at.substring(0, 10))}</span>}
                       </td>
 
-                      {/* Motivo */}
-                      <td style={{ padding: "0.875rem 1rem", fontSize: 12, color: T.muted, maxWidth: 180 }}>
-                        {c.reason || "—"}
+                      {/* Lava-Rápido (após onboarding) */}
+                      <td style={{ padding: "0.875rem 1rem", minWidth: 160 }}>
+                        {c.carwashes ? (
+                          <div>
+                            <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>🚗 {c.carwashes.name}</div>
+                            <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>{fDatetime(c.created_at)}</div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 11, color: T.muted, fontStyle: "italic" }}>Aguardando onboarding</span>
+                        )}
                       </td>
 
                       {/* Ações */}
                       <td style={{ padding: "0.875rem 1rem" }}>
-                        {s !== "revoked" && (
-                          <button onClick={() => revoke(c.id)}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: T.dangerBg, border: `1px solid ${T.danger}44`, borderRadius: 7, padding: "5px 10px", color: T.danger, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
-                            <Ban size={11} />Revogar
-                          </button>
-                        )}
-                        {s === "revoked" && <span style={{ fontSize: 11, color: T.muted }}>—</span>}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <a href={`mailto:${c.granted_to_email}`}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: `${T.accent}18`, border: `1px solid ${T.accent}44`, borderRadius: 7, padding: "5px 10px", color: T.accent, cursor: "pointer", fontSize: 11, fontWeight: 600, textDecoration: "none", fontFamily: "'DM Sans', sans-serif" }}>
+                            <Mail size={11} />Enviar e-mail
+                          </a>
+                          {s !== "revoked" && (
+                            <button onClick={() => revoke(c.id)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 5, background: T.dangerBg, border: `1px solid ${T.danger}44`, borderRadius: 7, padding: "5px 10px", color: T.danger, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+                              <Ban size={11} />Revogar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -326,17 +336,11 @@ export default function CourtesyView({ supabase, T: propT }) {
             {err && <div style={{ background: T.dangerBg, border: `1px solid ${T.danger}44`, borderRadius: 8, padding: "0.625rem 1rem", color: T.danger, fontSize: 13, marginBottom: "1.25rem" }}>{err}</div>}
 
             <div style={{ marginBottom: "1.25rem" }}>
-              <Label>Lava-Rápido</Label>
-              <select
-                style={selSt}
-                value={form.carwashId}
-                onChange={e => setForm(f => ({ ...f, carwashId: e.target.value }))}
-              >
-                <option value="">Selecione o lava-rápido...</option>
-                {carwashes.map(cw => (
-                  <option key={cw.id} value={cw.id}>{cw.name}</option>
-                ))}
-              </select>
+              <Label>E-mail do Usuário</Label>
+              <input style={inputSt} type="email" placeholder="cliente@email.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              <div style={{ fontSize: 11, color: T.muted, marginTop: 5 }}>
+                O cliente receberá um e-mail para criar sua conta e lava-rápido.
+              </div>
             </div>
 
             <div style={{ marginBottom: "1.25rem" }}>
@@ -354,24 +358,13 @@ export default function CourtesyView({ supabase, T: propT }) {
             {form.accessType === "prazo" && (
               <div style={{ marginBottom: "1.25rem" }}>
                 <Label>Data de Expiração</Label>
-                <input
-                  style={{ ...inputSt, colorScheme: "dark" }}
-                  type="date"
-                  value={form.expiresAt}
-                  min={new Date().toISOString().substring(0, 10)}
-                  onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
-                />
+                <input style={{ ...inputSt, colorScheme: "dark" }} type="date" value={form.expiresAt} min={new Date().toISOString().substring(0, 10)} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))} />
               </div>
             )}
 
             <div style={{ marginBottom: "1.75rem" }}>
-              <Label>Motivo</Label>
-              <textarea
-                style={{ ...inputSt, resize: "vertical", minHeight: 72 }}
-                placeholder="Ex: Cliente parceiro, teste interno, demonstração comercial..."
-                value={form.reason}
-                onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
-              />
+              <Label>Observação</Label>
+              <textarea style={{ ...inputSt, resize: "vertical", minHeight: 72 }} placeholder="Ex: Cliente parceiro, teste interno, demonstração comercial..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -386,7 +379,7 @@ export default function CourtesyView({ supabase, T: propT }) {
         </div>
       )}
 
-      {/* ── Modal Revogar por Lava-Rápido ── */}
+      {/* ── Modal Revogar por E-mail ── */}
       {revokeModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", backdropFilter: "blur(3px)" }}
           onClick={e => { if (e.target === e.currentTarget) setRevokeModal(false); }}>
@@ -398,19 +391,14 @@ export default function CourtesyView({ supabase, T: propT }) {
               </button>
             </div>
             <div style={{ marginBottom: "1.25rem" }}>
-              <Label>Lava-Rápido</Label>
-              <select style={selSt} value={revokeId} onChange={e => setRevokeId(e.target.value)}>
-                <option value="">Selecione o lava-rápido...</option>
-                {carwashes.map(cw => (
-                  <option key={cw.id} value={cw.id}>{cw.name}</option>
-                ))}
-              </select>
+              <Label>E-mail do usuário</Label>
+              <input style={inputSt} type="email" placeholder="cliente@email.com" value={revokeEmail} onChange={e => setRevokeEmail(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setRevokeModal(false)} style={{ flex: 1, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "0.7rem", color: T.text, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
                 Cancelar
               </button>
-              <button onClick={revokeByCarwash} style={{ flex: 1, background: T.dangerBg, border: `1px solid ${T.danger}55`, borderRadius: 10, padding: "0.7rem", color: T.danger, cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "'DM Sans', sans-serif" }}>
+              <button onClick={revokeByEmail} style={{ flex: 1, background: T.dangerBg, border: `1px solid ${T.danger}55`, borderRadius: 10, padding: "0.7rem", color: T.danger, cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "'DM Sans', sans-serif" }}>
                 <Ban size={15} />Revogar
               </button>
             </div>
