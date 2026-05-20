@@ -110,21 +110,32 @@ export default function ClientsView({ supabase, T: propT }) {
   const statusText  = (s) => ({ active: "Ativo",   expired: "Expirado", revoked: "Revogado" }[s] || "—");
 
   /* Sub-components */
-  const KpiCard = ({ label, value, icon: Icon, color }) => (
-    <div style={{
-      background: T.card, border: `1px solid ${T.border}`, borderRadius: 14,
-      padding: "1.25rem 1.5rem", display: "flex",
-      alignItems: "center", justifyContent: "space-between", gap: 12,
-    }}>
-      <div>
-        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, fontWeight: 700 }}>{label}</div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: 1, color: color || T.success, lineHeight: 1 }}>{value}</div>
+  const KpiCard = ({ label, value, icon: Icon, color }) => {
+    const c = color || T.success;
+    return (
+      <div
+        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 10px 36px ${c}1e, 0 2px 10px rgba(0,0,0,0.35)`; e.currentTarget.style.borderColor = c + "44"; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.18)"; e.currentTarget.style.borderColor = T.border; }}
+        style={{
+          background: T.card, border: `1px solid ${T.border}`, borderRadius: 14,
+          padding: "1.25rem 1.5rem", display: "flex",
+          alignItems: "center", justifyContent: "space-between", gap: 12,
+          position: "relative", overflow: "hidden",
+          transform: "translateY(0)", boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+          transition: "transform 0.22s cubic-bezier(.4,0,.2,1), box-shadow 0.22s, border-color 0.22s",
+        }}>
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: `linear-gradient(180deg, ${c} 0%, ${c}44 100%)`, borderRadius: "14px 0 0 14px" }} />
+        <div style={{ position: "absolute", top: -24, right: -24, width: 90, height: 90, borderRadius: "50%", background: `radial-gradient(circle, ${c}10 0%, transparent 70%)`, pointerEvents: "none" }} />
+        <div style={{ position: "relative" }}>
+          <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, fontWeight: 700 }}>{label}</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: 1, color: c, lineHeight: 1 }}>{value}</div>
+        </div>
+        <div style={{ background: c + "18", borderRadius: 12, padding: 12, flexShrink: 0, position: "relative", border: `1px solid ${c}22` }}>
+          <Icon size={20} color={c} />
+        </div>
       </div>
-      <div style={{ background: (color || T.success) + "18", borderRadius: 12, padding: 12, flexShrink: 0 }}>
-        <Icon size={20} color={color || T.success} />
-      </div>
-    </div>
-  );
+    );
+  };
 
   const selSt = {
     background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8,
