@@ -1716,6 +1716,22 @@ export default function App() {
     }
   }, []);
 
+  // Detect Supabase magic-link / email-confirmation (token arrives in URL hash)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("access_token=")) {
+      const params = new URLSearchParams(hash.replace(/^#/, ""));
+      const at = params.get("access_token");
+      const rt = params.get("refresh_token");
+      if (at) {
+        window.history.replaceState({}, "", window.location.pathname);
+        localStorage.setItem("oz_cw_token", at);
+        if (rt) localStorage.setItem("oz_cw_refresh", rt);
+        setToken(at);
+      }
+    }
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem("oz_cw_token");
     localStorage.removeItem("oz_cw_refresh");
@@ -1755,6 +1771,10 @@ export default function App() {
           if (shopRaw) applyTenantTheme(shopRaw, themeMode);
         } else if (isSuperAdmin) {
           setAccessInfo({ has_access: true, reason: "super_admin" });
+        } else {
+          // No carwash yet — could be courtesy pending onboarding
+          const acc = await checkCurrentUserAccess(token, prof);
+          setAccessInfo(acc);
         }
       } catch (e) { console.error(e); logout(); }
       setLoading(false);
@@ -1795,6 +1815,18 @@ export default function App() {
   // Super Admin
   if (profile?.is_super_admin === true || profile?.role === "super_admin") {
     return <SuperAdminView token={token} profile={profile} onLogout={logout} themeMode={themeMode} onToggleTheme={toggleTheme} />;
+  }
+
+  // Courtesy user: has access but no carwash yet → guided carwash onboarding
+  if (!profile?.carwash_id && accessInfo?.reason === "courtesy_pending_onboarding") {
+    return (
+      <Onboarding
+        isCourtesy={true}
+        courtesyToken={token}
+        courtesyEmail={profile.email}
+        onComplete={handleLogin}
+      />
+    );
   }
 
   // No access

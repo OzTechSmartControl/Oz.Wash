@@ -103,20 +103,35 @@ export default function CourtesyView({ supabase, T: propT }) {
 
   const grant = async () => {
     setErr("");
-    if (!form.email.trim()) { setErr("E-mail é obrigatório."); return; }
+    const email = form.email.trim().toLowerCase();
+    if (!email) { setErr("E-mail é obrigatório."); return; }
     if (form.accessType === "prazo" && !form.expiresAt) { setErr("Selecione a data de expiração."); return; }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const expiresAt = form.accessType === "prazo"
         ? new Date(form.expiresAt + "T23:59:59").toISOString()
         : null;
-      const { error } = await supabase.from("courtesy_access").insert({
-        granted_to_email: form.email.trim().toLowerCase(),
+
+      // 1. Insere a cortesia no banco
+      const { error: insertErr } = await supabase.from("courtesy_access").insert({
+        granted_to_email: email,
         expires_at:       expiresAt,
         notes:            form.notes || null,
-        granted_by:       user?.id || null,
+        granted_by:       user?.id  || null,
       });
-      if (error) throw new Error(error.message);
+      if (insertErr) throw new Error(insertErr.message);
+
+      // 2. Envia magic link de acesso (funciona para usuários novos e existentes)
+      //    O cliente clica no link → autentica → é direcionado ao onboarding do lava rápido
+      const redirectTo = `${window.location.origin}/?courtesy=true`;
+      await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: true, // cria conta se ainda não existir
+        },
+      });
+
       setModal(false); load();
     } catch (e) { setErr(e.message); }
   };

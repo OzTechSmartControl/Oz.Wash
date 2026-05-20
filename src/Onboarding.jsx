@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronLeft, Check, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, Check, Gift } from "lucide-react";
 
 const SUPABASE_URL  = "https://lolvvhdixbfcrquisnpi.supabase.co";
 const SUPABASE_ANON = "sb_publishable_Ud8gUkUl9A3hVrJQTcsI_g_uvwskZax";
@@ -8,6 +8,7 @@ const T = {
   bg: "#0b0b0e", surface: "#13131a", card: "#1a1a24", border: "#2a2a3a",
   accent: "#4db8ff", text: "#ece8e0", muted: "#706b63", mutedLight: "#9a9590",
   success: "#43d18a", danger: "#f07070", dangerBg: "#f0707018",
+  info: "#4db8ff", infoBg: "#4db8ff18",
 };
 
 const ACCENT_PRESETS = [
@@ -78,17 +79,38 @@ const ErrorBar = ({ msg }) => msg ? (
   <div style={{ background: T.dangerBg, border: `1px solid ${T.danger}44`, borderRadius: 8, padding: "0.625rem 1rem", color: T.danger, fontSize: 13, marginBottom: "1rem" }}>{msg}</div>
 ) : null;
 
-export default function Onboarding({ plan, onComplete }) {
-  const [step,     setStep]     = useState(0); // 0: conta, 1: lava rápido, 2: confirmação
-  const [loading,  setLoading]  = useState(false);
-  const [err,      setErr]      = useState("");
-  const [token,    setToken]    = useState("");
+/* ─────────────────────────────────────────────────────────────────
+   Props:
+     plan          – "monthly" | "semiannual" | "annual" | "courtesy"
+     onComplete    – (accessToken, refreshToken) => void
+     isCourtesy    – if true, skip account-creation step; use courtesyToken
+     courtesyToken – already-valid JWT from magic link / session
+     courtesyEmail – email of the courtesy user
+   ───────────────────────────────────────────────────────────────── */
+export default function Onboarding({
+  plan,
+  onComplete,
+  isCourtesy    = false,
+  courtesyToken = "",
+  courtesyEmail = "",
+}) {
+  // For courtesy: steps are ["Lava Rápido", "Pronto!"]  (idx 0–1)
+  // For paid:     steps are ["Sua Conta", "Lava Rápido", "Pronto!"]  (idx 0–2)
+  const stepLabels = isCourtesy
+    ? ["Lava Rápido", "Pronto!"]
+    : ["Sua Conta", "Lava Rápido", "Pronto!"];
 
-  const [account, setAccount] = useState({ email: "", password: "", confirm: "" });
+  const [step,    setStep]    = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState("");
+
+  // token state: pre-filled for courtesy users
+  const [token, setToken] = useState(courtesyToken || "");
+
+  const [account, setAccount] = useState({ email: courtesyEmail || "", password: "", confirm: "" });
   const [shop,    setShop]    = useState({ name: "", phone: "", accent_color: "#4db8ff" });
 
-  const stepLabels = ["Sua Conta", "Lava Rápido", "Pronto!"];
-
+  /* ── Step 0 (paid only): create account ── */
   const handleCreateAccount = async () => {
     setErr(""); setLoading(true);
     if (!account.email || !account.password) { setErr("E-mail e senha são obrigatórios."); setLoading(false); return; }
@@ -99,7 +121,6 @@ export default function Onboarding({ plan, onComplete }) {
       if (!ok) { setErr("Este e-mail não possui um pagamento confirmado. Verifique ou adquira um plano."); setLoading(false); return; }
       const data = await apiAuth.signUp(account.email, account.password);
       if (data.error || !data.id) {
-        // Usuário pode já existir — tenta login
         const loginData = await apiAuth.login(account.email, account.password);
         if (!loginData.access_token) { setErr(data.error_description || data.msg || "Erro ao criar conta."); setLoading(false); return; }
         setToken(loginData.access_token);
@@ -112,51 +133,91 @@ export default function Onboarding({ plan, onComplete }) {
     setLoading(false);
   };
 
+  /* ── Step 0 (courtesy) / Step 1 (paid): create carwash ── */
   const handleCreateShop = async () => {
     setErr(""); setLoading(true);
     if (!shop.name.trim()) { setErr("Nome do lava rápido é obrigatório."); setLoading(false); return; }
+    const usedToken = courtesyToken || token;
     try {
-      // Cria o lava rápido
+      // 1. Create carwash
       const res = await fetch(`${SUPABASE_URL}/rest/v1/carwashes`, {
         method: "POST",
-        headers: { ...hdr(token), Prefer: "return=representation" },
+        headers: { ...hdr(usedToken), Prefer: "return=representation" },
         body: JSON.stringify({ name: shop.name.trim(), phone: shop.phone, accent_color: shop.accent_color }),
       });
       const carwashes = await res.json();
       if (!res.ok) { setErr(carwashes.message || "Erro ao criar lava rápido."); setLoading(false); return; }
       const carwash = Array.isArray(carwashes) ? carwashes[0] : carwashes;
 
-      // Reivindica a assinatura paga
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_paid_subscription`, {
-        method: "POST",
-        headers: hdr(token),
-        body: JSON.stringify({ p_email: account.email, p_carwash_id: carwash.id, p_plan: plan }),
-      });
+      // 2. Link access
+      if (isCourtesy) {
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_courtesy_access`, {
+          method: "POST",
+          headers: hdr(usedToken),
+          body: JSON.stringify({ p_email: courtesyEmail, p_carwash_id: carwash.id }),
+        });
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_paid_subscription`, {
+          method: "POST",
+          headers: hdr(usedToken),
+          body: JSON.stringify({ p_email: account.email, p_carwash_id: carwash.id, p_plan: plan }),
+        });
+      }
 
-      setStep(2);
+      // Advance to "Pronto!" step
+      setStep(isCourtesy ? 1 : 2);
     } catch (e) { setErr(e.message); }
     setLoading(false);
   };
 
-  const handleFinish = () => onComplete(token, null);
+  const handleFinish = () => onComplete(courtesyToken || token, null);
 
+  /* ── Render ── */
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
       <div style={{ width: "100%", maxWidth: 460 }}>
+
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: 3, color: T.accent }}>Oz.LavaRápido</div>
-          <div style={{ color: T.muted, fontSize: 13, marginTop: 4 }}>Configuração inicial da conta</div>
+          {isCourtesy ? (
+            <div style={{ color: T.muted, fontSize: 13, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Gift size={13} color={T.accent} /> Acesso cortesia ativado
+            </div>
+          ) : (
+            <div style={{ color: T.muted, fontSize: 13, marginTop: 4 }}>Configuração inicial da conta</div>
+          )}
         </div>
+
+        {/* Courtesy banner */}
+        {isCourtesy && (
+          <div style={{ background: T.infoBg, border: `1px solid ${T.info}33`, borderRadius: 12, padding: "0.875rem 1rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 10 }}>
+            <Gift size={16} color={T.accent} style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>Bem-vindo ao Oz.LavaRápido!</div>
+              <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
+                Sua conta já foi criada. Agora é só configurar o seu lava rápido.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Step indicator */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: "2rem" }}>
           {stepLabels.map((label, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: i < step ? T.success : i === step ? T.accent : T.surface, border: `2px solid ${i <= step ? (i < step ? T.success : T.accent) : T.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: i <= step ? "#000" : T.muted }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%",
+                background: i < step ? T.success : i === step ? T.accent : T.surface,
+                border: `2px solid ${i <= step ? (i < step ? T.success : T.accent) : T.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 12, fontWeight: 700, color: i <= step ? "#000" : T.muted,
+              }}>
                 {i < step ? <Check size={14} /> : i + 1}
               </div>
-              {i < stepLabels.length - 1 && <div style={{ width: 32, height: 2, background: i < step ? T.success : T.border }} />}
+              {i < stepLabels.length - 1 && (
+                <div style={{ width: 32, height: 2, background: i < step ? T.success : T.border }} />
+              )}
             </div>
           ))}
         </div>
@@ -165,10 +226,11 @@ export default function Onboarding({ plan, onComplete }) {
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "2rem" }}>
           <ErrorBar msg={err} />
 
-          {step === 0 && (
+          {/* ── PAID: Step 0 — Create Account ── */}
+          {!isCourtesy && step === 0 && (
             <>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 1.5, color: T.text, marginBottom: "1.5rem" }}>Crie sua conta</div>
-              <FInput label="E-mail *" type="email" value={account.email}    onChange={e => setAccount(a => ({ ...a, email: e.target.value }))} placeholder="seu@email.com" />
+              <FInput label="E-mail *" type="email" value={account.email} onChange={e => setAccount(a => ({ ...a, email: e.target.value }))} placeholder="seu@email.com" />
               <FInput label="Senha *"  type="password" value={account.password} onChange={e => setAccount(a => ({ ...a, password: e.target.value }))} placeholder="Mínimo 6 caracteres" />
               <FInput label="Confirmar Senha *" type="password" value={account.confirm} onChange={e => setAccount(a => ({ ...a, confirm: e.target.value }))} />
               <Btn onClick={handleCreateAccount} disabled={loading} style={{ width: "100%", justifyContent: "center", marginTop: "0.5rem" }}>
@@ -177,7 +239,8 @@ export default function Onboarding({ plan, onComplete }) {
             </>
           )}
 
-          {step === 1 && (
+          {/* ── COURTESY: Step 0  /  PAID: Step 1 — Create Carwash ── */}
+          {((isCourtesy && step === 0) || (!isCourtesy && step === 1)) && (
             <>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 1.5, color: T.text, marginBottom: "1.5rem" }}>Seu Lava Rápido</div>
               <FInput label="Nome do Lava Rápido *" value={shop.name}  onChange={e => setShop(s => ({ ...s, name: e.target.value }))} placeholder="Ex: Lava Rápido do João" />
@@ -194,22 +257,27 @@ export default function Onboarding({ plan, onComplete }) {
                   style={{ width: "100%", height: 38, borderRadius: 8, border: `1px solid ${T.border}`, cursor: "pointer", background: "none" }} />
               </FG>
               <div style={{ display: "flex", gap: 10, marginTop: "0.5rem" }}>
-                <Btn variant="ghost" onClick={() => setStep(0)} style={{ flex: 1, justifyContent: "center" }}><ChevronLeft size={16} />Voltar</Btn>
-                <Btn onClick={handleCreateShop} disabled={loading} style={{ flex: 2, justifyContent: "center" }}>
+                {!isCourtesy && (
+                  <Btn variant="ghost" onClick={() => setStep(0)} style={{ flex: 1, justifyContent: "center" }}><ChevronLeft size={16} />Voltar</Btn>
+                )}
+                <Btn onClick={handleCreateShop} disabled={loading} style={{ flex: isCourtesy ? "1 1 100%" : 2, justifyContent: "center" }}>
                   {loading ? "Criando..." : "Finalizar"}<ChevronRight size={16} />
                 </Btn>
               </div>
             </>
           )}
 
-          {step === 2 && (
+          {/* ── Done ── */}
+          {((isCourtesy && step === 1) || (!isCourtesy && step === 2)) && (
             <div style={{ textAlign: "center" }}>
               <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.success + "20", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem" }}>
                 <Check size={32} color={T.success} />
               </div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, letterSpacing: 2, color: T.text, marginBottom: "0.75rem" }}>Tudo pronto!</div>
               <div style={{ color: T.muted, fontSize: 13, marginBottom: "1.5rem", lineHeight: 1.6 }}>
-                Sua conta e lava rápido foram criados com sucesso.<br />Bem-vindo ao Oz.LavaRápido!
+                {isCourtesy
+                  ? "Seu lava rápido foi configurado com acesso cortesia.\nBem-vindo ao Oz.LavaRápido!"
+                  : "Sua conta e lava rápido foram criados com sucesso.\nBem-vindo ao Oz.LavaRápido!"}
               </div>
               <Btn onClick={handleFinish} style={{ width: "100%", justifyContent: "center" }}>Acessar o Sistema</Btn>
             </div>
