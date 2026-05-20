@@ -266,44 +266,50 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
       {/* ── Main content ── */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
 
-        {/* Topbar (mobile + desktop collapsed) */}
-        <div style={{
-          display: "flex", alignItems: "center",
-          padding: "0.75rem 1.25rem",
-          borderBottom: `1px solid ${T.border}`,
-          background: T.sidebar, flexShrink: 0,
-          gap: 12,
-        }}>
-          {/* Hamburger / expand button */}
+        {/* Topbar — somente mobile */}
+        {isMobile && (
+          <div style={{
+            display: "flex", alignItems: "center",
+            padding: "0.75rem 1.25rem",
+            borderBottom: `1px solid ${T.border}`,
+            background: T.sidebar, flexShrink: 0,
+            gap: 12,
+          }}>
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              style={{
+                width: 36, height: 36, borderRadius: 9,
+                background: T.surface, border: `1px solid ${T.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: T.text, flexShrink: 0,
+              }}>
+              <Menu size={17} />
+            </button>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 16, color: T.accent }}>
+              Oz.Wash
+            </div>
+            <div style={{ marginLeft: 4, fontSize: 10, color: T.success, fontWeight: 700, background: `${T.success}18`, padding: "2px 8px", borderRadius: 20 }}>
+              SUPER ADMIN
+            </div>
+          </div>
+        )}
+
+        {/* Desktop: botão flutuante para expandir sidebar quando colapsado */}
+        {!isMobile && collapsed && (
           <button
-            onClick={() => isMobile ? setMobileSidebarOpen(true) : setCollapsed(false)}
+            onClick={() => setCollapsed(false)}
+            title="Expandir menu"
             style={{
+              position: "fixed", left: 12, top: 12, zIndex: 100,
               width: 36, height: 36, borderRadius: 9,
-              background: T.surface, border: `1px solid ${T.border}`,
+              background: T.sidebar, border: `1px solid ${T.border}`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: T.text, flexShrink: 0,
-              // Hide on desktop when sidebar is open
-              opacity: (!isMobile && !collapsed) ? 0 : 1,
-              pointerEvents: (!isMobile && !collapsed) ? "none" : "auto",
-              transition: "opacity 0.2s",
+              cursor: "pointer", color: T.text,
+              boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
             }}>
             <Menu size={17} />
           </button>
-
-          {/* Page title / breadcrumb */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, color: T.accent }}>
-              {NAV_ITEMS.find(n => n.id === activeView)?.label || "Dashboard"}
-            </div>
-          </div>
-
-          {/* Right: mobile brand */}
-          {isMobile && (
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 15, color: T.accent }}>
-              Oz.Wash
-            </div>
-          )}
-        </div>
+        )}
 
         <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2.5rem", width: "100%", minWidth: 0 }}>
           {renderView()}
