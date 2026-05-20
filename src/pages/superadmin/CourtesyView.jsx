@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Plus, Check, X, RefreshCw, Infinity, Clock, Gift, Search, Mail, Ban } from "lucide-react";
 import { T_DARK } from "../../config/theme";
 import { fDate } from "../../utils/formatters";
+import { supabase as supabaseAnon } from "../../supabase"; // cliente anon para OTP de e-mail
 
 const fDatetime = (s) => {
   if (!s) return "—";
@@ -119,15 +120,25 @@ export default function CourtesyView({ supabase, T: propT }) {
       });
       if (insertErr) throw new Error(insertErr.message);
 
-      // 2. Envia magic link (funciona para usuários novos e existentes)
+      // 2. Envia magic link via cliente anon (não pode usar JWT autenticado aqui)
       const redirectTo = `${window.location.origin}/?courtesy=true`;
-      await supabase.auth.signInWithOtp({
+      await supabaseAnon.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
       });
 
       setModal(false); load();
     } catch (e) { setErr(e.message); }
+  };
+
+  const resendInvite = async (email) => {
+    const redirectTo = `${window.location.origin}/?courtesy=true`;
+    const { error } = await supabaseAnon.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
+    });
+    if (error) alert(`Erro ao reenviar: ${error.message}`);
+    else alert(`Magic link reenviado para ${email}`);
   };
 
   const revoke = async (id) => {
@@ -294,10 +305,10 @@ export default function CourtesyView({ supabase, T: propT }) {
                       {/* Ações */}
                       <td style={{ padding: "0.875rem 1rem" }}>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <a href={`mailto:${c.granted_to_email}`}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: `${T.accent}18`, border: `1px solid ${T.accent}44`, borderRadius: 7, padding: "5px 10px", color: T.accent, cursor: "pointer", fontSize: 11, fontWeight: 600, textDecoration: "none", fontFamily: "'DM Sans', sans-serif" }}>
+                          <button onClick={() => resendInvite(c.granted_to_email)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: `${T.accent}18`, border: `1px solid ${T.accent}44`, borderRadius: 7, padding: "5px 10px", color: T.accent, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
                             <Mail size={11} />Enviar e-mail
-                          </a>
+                          </button>
                           {s !== "revoked" && (
                             <button onClick={() => revoke(c.id)}
                               style={{ display: "inline-flex", alignItems: "center", gap: 5, background: T.dangerBg, border: `1px solid ${T.danger}44`, borderRadius: 7, padding: "5px 10px", color: T.danger, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
