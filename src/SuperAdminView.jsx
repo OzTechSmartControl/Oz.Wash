@@ -4,7 +4,7 @@ import {
   Gift, TrendingUp, Users, LogOut, Menu, X, Sun, Moon,
   ChevronLeft,
 } from "lucide-react";
-import { supabase } from "./supabase";
+import { createAuthedClient } from "./supabase";
 import { T_DARK, T_LIGHT } from "./config/theme";
 import DashboardView     from "./pages/superadmin/DashboardView";
 import ClientsView       from "./pages/superadmin/ClientsView";
@@ -35,6 +35,10 @@ const SIDEBAR_W = 248;
 
 export default function SuperAdminView({ token, profile, onLogout, themeMode, onToggleTheme }) {
   const T = themeMode === "light" ? T_LIGHT : T_DARK;
+
+  // Cliente Supabase autenticado com o JWT do super admin
+  // Isso garante que auth.uid() funcione nas RLS e RPCs
+  const supabase = createAuthedClient(token);
 
   const [activeView,       setActiveView]       = useState("dashboard");
   const [metrics,          setMetrics]          = useState(null);
