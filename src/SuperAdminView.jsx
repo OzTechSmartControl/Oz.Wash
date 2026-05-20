@@ -112,8 +112,8 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
         {/* Logo centralizada grande */}
         <div style={{ textAlign: "center", paddingTop: "0.25rem" }}>
           <div style={{
-            width: 92, height: 92, margin: "0 auto 0.75rem",
-            filter: `drop-shadow(0 0 18px ${T.accent}60) drop-shadow(0 0 36px ${T.accent}25)`,
+            width: 184, height: 184, margin: "0 auto 0.875rem",
+            filter: `drop-shadow(0 0 28px ${T.accent}60) drop-shadow(0 0 56px ${T.accent}25)`,
           }}>
             <img
               src="/icons/logo.png"
@@ -127,9 +127,8 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
           </div>
           <div style={{
             fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
-            fontSize: 22, letterSpacing: 1.5, color: T.accent, lineHeight: 1,
+            fontSize: 24, letterSpacing: 1.5, color: T.accent, lineHeight: 1,
           }}>Oz.Wash</div>
-          <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>LavaRápido</div>
         </div>
 
         {/* SUPER ADMIN badge */}
