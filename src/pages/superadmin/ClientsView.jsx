@@ -34,7 +34,7 @@ export default function ClientsView({ supabase, T: propT }) {
           .order("created_at", { ascending: false }),
         supabase
           .from("courtesy_access")
-          .select("id, email, access_type, expires_at, created_at, status, carwashes(name)")
+          .select("id, email, expires_at, created_at, status, revoked_at, carwashes(name)")
           .order("created_at", { ascending: false }),
       ]);
       setSubs(subsRes.data || []);
@@ -78,7 +78,7 @@ export default function ClientsView({ supabase, T: propT }) {
       email:   c.email,
       carwash: c.carwashes?.name || null,
       tipo:    "courtesy",
-      plan:    c.access_type || "indefinido",
+      plan:    c.expires_at ? "prazo" : "indefinido",
       status:  statusOfCourt(c),
       since:   c.created_at,
       expires: c.expires_at,

@@ -111,7 +111,6 @@ export default function CourtesyView({ supabase, T: propT }) {
         : null;
       const { error } = await supabase.from("courtesy_access").insert({
         email: form.email.trim(),
-        access_type: form.accessType,
         expires_at: expiresAt,
         notes: form.notes,
         granted_by: "super_admin",
