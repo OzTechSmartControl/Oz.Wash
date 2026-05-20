@@ -33,7 +33,7 @@ export default function ClientsView({ supabase, T: propT }) {
           .select("id, name, plan, plan_expires_at, created_at")
           .order("created_at", { ascending: false }),
         supabase
-          .from("courtesy_accesses")
+          .from("courtesy_access")
           .select("id, email, access_type, expires_at, created_at, status, carwashes(name)")
           .order("created_at", { ascending: false }),
       ]);

@@ -55,7 +55,7 @@ export default function CourtesyView({ supabase, T: propT }) {
     setLoading(true);
     try {
       const { data } = await supabase
-        .from("courtesy_accesses")
+        .from("courtesy_access")
         .select("*, carwashes(name, id)")
         .order("created_at", { ascending: false });
       setCourtesies(data || []);
@@ -109,7 +109,7 @@ export default function CourtesyView({ supabase, T: propT }) {
       const expiresAt = form.accessType === "prazo"
         ? new Date(form.expiresAt + "T23:59:59").toISOString()
         : null;
-      const { error } = await supabase.from("courtesy_accesses").insert({
+      const { error } = await supabase.from("courtesy_access").insert({
         email: form.email.trim(),
         access_type: form.accessType,
         expires_at: expiresAt,
@@ -124,7 +124,7 @@ export default function CourtesyView({ supabase, T: propT }) {
   const revoke = async (id) => {
     if (!confirm("Revogar esta cortesia?")) return;
     await supabase
-      .from("courtesy_accesses")
+      .from("courtesy_access")
       .update({ status: "revoked", revoked_at: new Date().toISOString() })
       .eq("id", id);
     load();
@@ -133,7 +133,7 @@ export default function CourtesyView({ supabase, T: propT }) {
   const revokeByEmail = async () => {
     if (!revokeEmail.trim()) return;
     await supabase
-      .from("courtesy_accesses")
+      .from("courtesy_access")
       .update({ status: "revoked", revoked_at: new Date().toISOString() })
       .eq("email", revokeEmail.trim())
       .neq("status", "revoked");
