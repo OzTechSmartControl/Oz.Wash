@@ -46,11 +46,34 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [collapsed,        setCollapsed]        = useState(false);   // desktop collapse
   const [isMobile,         setIsMobile]         = useState(window.innerWidth < 768);
+  const [hoveredNav,       setHoveredNav]       = useState(null);
 
   useEffect(() => {
     const fn = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
+  }, []);
+
+  // Inject CSS keyframes (shared with DashboardView via oz-sa-styles id)
+  useEffect(() => {
+    if (document.getElementById("oz-sa-styles")) return;
+    const s = document.createElement("style");
+    s.id = "oz-sa-styles";
+    s.textContent = `
+      @keyframes cardIn {
+        from { opacity: 0; transform: translateY(18px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0)    scale(1);    }
+      }
+      @keyframes fadeView {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0);    }
+      }
+      @keyframes shimmer {
+        0%   { background-position: -600px 0; }
+        100% { background-position:  600px 0; }
+      }
+    `;
+    document.head.appendChild(s);
   }, []);
 
   const loadMetrics = async () => {
@@ -150,30 +173,35 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
       <nav style={{ flex: 1, padding: "0.75rem 0.5rem", overflowY: "auto" }}>
         {NAV_ITEMS.map(({ id, label, sub, icon: Icon }) => {
           const isActive = activeView === id;
+          const isHov    = hoveredNav === id && !isActive;
           return (
             <button key={id}
               onClick={() => navigate(id)}
+              onMouseEnter={() => setHoveredNav(id)}
+              onMouseLeave={() => setHoveredNav(null)}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 10,
                 padding: "0.55rem 0.625rem", borderRadius: 10, border: "none",
                 cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 2,
-                background: isActive ? `${T.accent}18` : "transparent",
-                transition: "background 0.15s",
+                background: isActive ? `${T.accent}18` : isHov ? `${T.accent}0b` : "transparent",
+                transform: isHov ? "translateX(3px)" : "translateX(0)",
+                transition: "background 0.18s, transform 0.18s cubic-bezier(.4,0,.2,1)",
               }}>
               <div style={{
                 width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-                background: isActive ? `${T.accent}28` : T.surface,
-                border: `1px solid ${isActive ? T.accent + "55" : T.border}`,
+                background: isActive ? `${T.accent}28` : isHov ? `${T.accent}14` : T.surface,
+                border: `1px solid ${isActive ? T.accent + "55" : isHov ? T.accent + "33" : T.border}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.15s",
+                transition: "all 0.18s",
+                boxShadow: isActive ? `0 0 12px ${T.accent}22` : "none",
               }}>
-                <Icon size={15} color={isActive ? T.accent : T.muted} />
+                <Icon size={15} color={isActive ? T.accent : isHov ? T.accent + "bb" : T.muted} />
               </div>
               <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? T.accent : T.text, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? T.accent : isHov ? T.text : T.text, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", transition: "color 0.18s" }}>{label}</div>
                 <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>{sub}</div>
               </div>
-              {isActive && <div style={{ width: 3, height: 18, borderRadius: 99, background: T.accent, flexShrink: 0 }} />}
+              {isActive && <div style={{ width: 3, height: 18, borderRadius: 99, background: T.accent, flexShrink: 0, boxShadow: `0 0 8px ${T.accent}88` }} />}
             </button>
           );
         })}
@@ -316,7 +344,9 @@ export default function SuperAdminView({ token, profile, onLogout, themeMode, on
         )}
 
         <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2.5rem", width: "100%", minWidth: 0 }}>
-          {renderView()}
+          <div key={activeView} style={{ animation: "fadeView 0.28s cubic-bezier(.4,0,.2,1) both" }}>
+            {renderView()}
+          </div>
         </main>
       </div>
     </div>
