@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import {
   DollarSign, TrendingUp, Users, AlertCircle,
   RefreshCw, TrendingDown, UserPlus,
@@ -12,7 +12,7 @@ import { T_DARK } from "../../config/theme";
 const R$ = v => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(+v || 0);
 const pct = v => `${(+(v || 0)).toFixed(1)}%`;
 
-/* ── Inject keyframes once ─────────────────────────────────── */
+/* ── Inject keyframes once globally ───────────────────────── */
 const injectStyles = () => {
   if (document.getElementById("oz-sa-styles")) return;
   const s = document.createElement("style");
@@ -37,56 +37,71 @@ const injectStyles = () => {
 export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T: propT }) {
   const T = propT || T_DARK;
   const m = metrics || {};
-  const [hov, setHov] = useState(null);
 
   useEffect(() => { injectStyles(); }, []);
 
-  const growthData  = Array.isArray(m.monthly_growth)     ? m.monthly_growth     : [];
-  const planDist    = Array.isArray(m.plan_distribution)   ? m.plan_distribution  : [];
+  const growthData  = Array.isArray(m.monthly_growth)   ? m.monthly_growth   : [];
+  const planDist    = Array.isArray(m.plan_distribution) ? m.plan_distribution : [];
   const totalActive = +(m.active_carwashes || 0);
   const planMap     = {};
   planDist.forEach(p => { planMap[p.plan] = +(p.count || 0); });
   const churnRate   = m.total_carwashes > 0
     ? ((+(m.cancelled_carwashes || 0) / +(m.total_carwashes || 1)) * 100) : 0;
 
+  /* ── Hover helpers — direct DOM, zero re-renders ─────────── */
+  const onCardEnter = (c) => (e) => {
+    const el = e.currentTarget;
+    el.style.transform  = "translateY(-4px)";
+    el.style.boxShadow  = `0 10px 36px ${c}1e, 0 2px 10px rgba(0,0,0,0.35)`;
+    el.style.borderColor = c + "44";
+  };
+  const onCardLeave = (c, glow) => (e) => {
+    const el = e.currentTarget;
+    el.style.transform  = "translateY(0)";
+    el.style.boxShadow  = glow ? `0 0 22px ${c}12` : "0 1px 4px rgba(0,0,0,0.18)";
+    el.style.borderColor = glow ? c + "28" : T.border;
+  };
+  const onChartEnter = (e) => {
+    e.currentTarget.style.transform  = "translateY(-2px)";
+    e.currentTarget.style.boxShadow  = "0 6px 28px rgba(0,0,0,0.28)";
+    e.currentTarget.style.borderColor = T.accent + "22";
+  };
+  const onChartLeave = (e) => {
+    e.currentTarget.style.transform  = "translateY(0)";
+    e.currentTarget.style.boxShadow  = "0 1px 4px rgba(0,0,0,0.15)";
+    e.currentTarget.style.borderColor = T.border;
+  };
+
   /* ── KPI Card ──────────────────────────────────────────────── */
   const KpiCard = ({ label, value, sub, color, icon: Icon, glow, idx }) => {
-    const h = hov === `kpi-${idx}`;
     const c = color || T.accent;
     return (
       <div
-        onMouseEnter={() => setHov(`kpi-${idx}`)}
-        onMouseLeave={() => setHov(null)}
+        onMouseEnter={onCardEnter(c)}
+        onMouseLeave={onCardLeave(c, glow)}
         style={{
           background: T.card,
-          border: `1px solid ${h ? c + "44" : glow ? c + "28" : T.border}`,
+          border: `1px solid ${glow ? c + "28" : T.border}`,
           borderRadius: 16, padding: "1.375rem 1.25rem 1.25rem",
           position: "relative", overflow: "hidden", minWidth: 0,
-          boxShadow: h
-            ? `0 10px 36px ${c}1e, 0 2px 10px rgba(0,0,0,0.35)`
-            : glow ? `0 0 22px ${c}12` : "0 1px 4px rgba(0,0,0,0.18)",
-          transform: h ? "translateY(-4px)" : "translateY(0)",
-          transition: "all 0.22s cubic-bezier(.4,0,.2,1)",
+          boxShadow: glow ? `0 0 22px ${c}12` : "0 1px 4px rgba(0,0,0,0.18)",
+          transform: "translateY(0)",
+          transition: "transform 0.22s cubic-bezier(.4,0,.2,1), box-shadow 0.22s, border-color 0.22s",
           animation: `cardIn 0.45s cubic-bezier(.4,0,.2,1) ${idx * 0.06}s both`,
         }}>
         {/* Left accent bar */}
         <div style={{
           position: "absolute", top: 0, left: 0, bottom: 0, width: 3,
-          background: `linear-gradient(180deg, ${c} 0%, ${c}33 100%)`,
+          background: `linear-gradient(180deg, ${c} 0%, ${c}44 100%)`,
           borderRadius: "16px 0 0 16px",
-          opacity: h ? 1 : 0.55,
-          transition: "opacity 0.22s",
         }} />
         {/* Radial glow blob */}
         <div style={{
           position: "absolute", top: -28, right: -28, width: 110, height: 110,
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${c}14 0%, transparent 70%)`,
-          transform: h ? "scale(1.5)" : "scale(1)",
-          transition: "transform 0.35s ease",
+          background: `radial-gradient(circle, ${c}10 0%, transparent 70%)`,
           pointerEvents: "none",
         }} />
-
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, position: "relative" }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 0.9, marginBottom: 10, fontWeight: 700 }}>{label}</div>
@@ -94,19 +109,15 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T
               fontFamily: "'Bebas Neue', sans-serif",
               fontSize: "clamp(22px,3.5vw,34px)",
               letterSpacing: 1, lineHeight: 1,
-              color: h ? c : (color || T.text),
+              color: color || T.text,
               wordBreak: "break-word",
-              transition: "color 0.22s",
             }}>{value}</div>
             {sub && <div style={{ fontSize: 11, color: T.muted, marginTop: 7, lineHeight: 1.4 }}>{sub}</div>}
           </div>
           {Icon && (
             <div style={{
-              background: h ? c + "28" : c + "14",
-              borderRadius: 11, padding: "0.625rem", flexShrink: 0,
-              border: `1px solid ${c}${h ? "44" : "1e"}`,
-              transition: "all 0.22s",
-              transform: h ? "scale(1.1) rotate(-4deg)" : "scale(1) rotate(0deg)",
+              background: c + "15", borderRadius: 11, padding: "0.625rem", flexShrink: 0,
+              border: `1px solid ${c}22`,
             }}>
               <Icon size={16} color={c} />
             </div>
@@ -117,32 +128,26 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T
   };
 
   /* ── Chart Card ────────────────────────────────────────────── */
-  const ChartCard = ({ title, sub, children, idx, action }) => {
-    const h = hov === `chart-${idx}`;
-    return (
-      <div
-        onMouseEnter={() => setHov(`chart-${idx}`)}
-        onMouseLeave={() => setHov(null)}
-        style={{
-          background: T.card,
-          border: `1px solid ${h ? T.accent + "22" : T.border}`,
-          borderRadius: 16, padding: "1.5rem",
-          boxShadow: h ? "0 6px 28px rgba(0,0,0,0.28)" : "0 1px 4px rgba(0,0,0,0.15)",
-          transform: h ? "translateY(-2px)" : "translateY(0)",
-          transition: "all 0.22s cubic-bezier(.4,0,.2,1)",
-          animation: `cardIn 0.45s cubic-bezier(.4,0,.2,1) ${(idx + 6) * 0.06}s both`,
-        }}>
-        <div style={{ marginBottom: "1.25rem", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-          <div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, letterSpacing: 1.5, color: T.text }}>{title}</div>
-            {sub && <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{sub}</div>}
-          </div>
-          {action}
-        </div>
-        {children}
+  const ChartCard = ({ title, sub, children, idx }) => (
+    <div
+      onMouseEnter={onChartEnter}
+      onMouseLeave={onChartLeave}
+      style={{
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 16, padding: "1.5rem",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+        transform: "translateY(0)",
+        transition: "transform 0.22s cubic-bezier(.4,0,.2,1), box-shadow 0.22s, border-color 0.22s",
+        animation: `cardIn 0.45s cubic-bezier(.4,0,.2,1) ${(idx + 6) * 0.06}s both`,
+      }}>
+      <div style={{ marginBottom: "1.25rem" }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, letterSpacing: 1.5, color: T.text }}>{title}</div>
+        {sub && <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{sub}</div>}
       </div>
-    );
-  };
+      {children}
+    </div>
+  );
 
   /* ── Tooltip ───────────────────────────────────────────────── */
   const CustomTooltip = ({ active, payload, label }) => {
@@ -214,14 +219,6 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T
     }} />
   );
 
-  /* ── Empty chart placeholder ───────────────────────────────── */
-  const EmptyChart = ({ icon: Icon, label }) => (
-    <div style={{ height: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-      <Icon size={30} color={T.border} strokeWidth={1.5} />
-      <span style={{ fontSize: 13, color: T.muted }}>{label}</span>
-    </div>
-  );
-
   /* ── Render ────────────────────────────────────────────────── */
   return (
     <div>
@@ -246,27 +243,25 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T
             {[...Array(6)].map((_, i) => <Skeleton key={i} delay={i * 0.1} />)}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.25rem", marginBottom: "1.25rem" }}>
-            <Skeleton h={280} delay={0.6} />
-            <Skeleton h={280} delay={0.7} />
+            <Skeleton h={280} delay={0.6} /><Skeleton h={280} delay={0.7} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.25rem" }}>
-            <Skeleton h={240} delay={0.8} />
-            <Skeleton h={240} delay={0.9} />
+            <Skeleton h={240} delay={0.8} /><Skeleton h={240} delay={0.9} />
           </div>
         </>
       ) : (
         <>
           {/* KPI Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
-            <KpiCard label="MRR"             value={R$(m.mrr)}                  icon={DollarSign}  color={T.success} glow idx={0} />
-            <KpiCard label="ARR"             value={R$(m.arr)}                  icon={TrendingUp}  color={T.success}      idx={1} />
-            <KpiCard label="Clientes Ativos" value={m.active_carwashes ?? 0}    icon={Users}       color={T.accent}  glow idx={2} sub="Assinaturas ativas" />
-            <KpiCard label="Churn"           value={pct(churnRate)}             icon={TrendingDown} color={T.danger}      idx={3} sub="Cancelados / total" />
-            <KpiCard label="Inadimplência"   value={m.overdue_carwashes ?? 0}   icon={AlertCircle}  color={T.danger}      idx={4} sub="Vencidas ou em atraso" />
-            <KpiCard label="Crescimento"     value={m.total_carwashes ?? 0}     icon={UserPlus}     color={T.info}        idx={5} sub="Novas contas no último mês" />
+            <KpiCard label="MRR"             value={R$(m.mrr)}                icon={DollarSign}  color={T.success} glow idx={0} />
+            <KpiCard label="ARR"             value={R$(m.arr)}                icon={TrendingUp}  color={T.success}      idx={1} />
+            <KpiCard label="Clientes Ativos" value={m.active_carwashes ?? 0}  icon={Users}       color={T.accent}  glow idx={2} sub="Assinaturas ativas" />
+            <KpiCard label="Churn"           value={pct(churnRate)}           icon={TrendingDown} color={T.danger}      idx={3} sub="Cancelados / total" />
+            <KpiCard label="Inadimplência"   value={m.overdue_carwashes ?? 0} icon={AlertCircle}  color={T.danger}      idx={4} sub="Vencidas ou em atraso" />
+            <KpiCard label="Crescimento"     value={m.total_carwashes ?? 0}   icon={UserPlus}     color={T.info}        idx={5} sub="Novas contas no último mês" />
           </div>
 
-          {/* Charts row */}
+          {/* Charts */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.25rem", marginBottom: "1.25rem" }}>
             <ChartCard title="Crescimento de Receita" sub="Evolução da receita registrada por mês" idx={0}>
               {growthData.length > 0 ? (
@@ -281,7 +276,12 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T
                       activeDot={{ r: 6, strokeWidth: 2, stroke: T.accent + "44", fill: T.accent }} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <EmptyChart icon={TrendingUp} label="Sem dados ainda" />}
+              ) : (
+                <div style={{ height: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <TrendingUp size={28} color={T.border} strokeWidth={1.5} />
+                  <span style={{ fontSize: 13, color: T.muted }}>Sem dados ainda</span>
+                </div>
+              )}
             </ChartCard>
 
             <ChartCard title="Novos Clientes" sub="Lava rápidos cadastrados por mês" idx={1}>
@@ -295,7 +295,12 @@ export default function DashboardView({ metrics, loadingMet, onRefreshMetrics, T
                     <Bar dataKey="new_carwashes" name="Cadastros" fill={T.accent} radius={[5, 5, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              ) : <EmptyChart icon={Users} label="Sem dados ainda" />}
+              ) : (
+                <div style={{ height: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <Users size={28} color={T.border} strokeWidth={1.5} />
+                  <span style={{ fontSize: 13, color: T.muted }}>Sem dados ainda</span>
+                </div>
+              )}
             </ChartCard>
           </div>
 
