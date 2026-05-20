@@ -1,14 +1,36 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
+import { RefreshCw, Bell, CheckCircle, UserPlus, CreditCard, Gift, AlertTriangle, Info } from "lucide-react";
 import { T_DARK } from "../../config/theme";
-import { fDatetime } from "../../utils/formatters";
+
+/* ── Relative time helper ── */
+const relTime = (dateStr) => {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60_000);
+  const hrs   = Math.floor(mins / 60);
+  const days  = Math.floor(hrs  / 24);
+  if (days  > 0) return `${days}d atrás`;
+  if (hrs   > 0) return `${hrs}h atrás`;
+  if (mins  > 0) return `${mins}min atrás`;
+  return "agora";
+};
+
+/* ── Alert config by type/level ── */
+const alertConfig = (level, type) => {
+  const map = {
+    new_client:    { color: "#43d18a", icon: UserPlus,      badge: "NOVO CLIENTE"  },
+    new_sub:       { color: "#43d18a", icon: CreditCard,    badge: "ASSINATURA"    },
+    new_courtesy:  { color: "#4db8ff", icon: Gift,          badge: "CORTESIA"      },
+    error:         { color: "#f07070", icon: AlertTriangle,  badge: "ERRO"         },
+    warning:       { color: "#f0a500", icon: AlertTriangle,  badge: "AVISO"        },
+    info:          { color: "#60a5fa", icon: Info,           badge: "INFO"         },
+    success:       { color: "#43d18a", icon: CheckCircle,    badge: "SUCESSO"      },
+  };
+  return map[type] || map[level] || { color: "#706b63", icon: Bell, badge: level || "INFO" };
+};
 
 export default function AlertsView({ supabase, T: propT }) {
   const T = propT || T_DARK;
-
-  const Badge = ({ children, color }) => (
-    <span style={{ background: (color || T.muted) + "22", color: color || T.muted, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
-  );
 
   const [alerts,  setAlerts]  = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,38 +50,105 @@ export default function AlertsView({ supabase, T: propT }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const levelColor = (l) => ({ error: T.danger, warning: T.warn || "#f59e0b", info: T.info || "#60a5fa", success: T.success }[l] || T.muted);
-
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.75rem", flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(26px,6vw,38px)", letterSpacing: 2.5, margin: 0, color: T.text }}>Alertas</h1>
+
+      {/* ── Header ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ background: T.accent + "18", borderRadius: 12, padding: 10 }}>
+            <Bell size={22} color={T.accent} />
+          </div>
+          <div>
+            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(24px,5vw,36px)", letterSpacing: 2.5, margin: 0, color: T.text, lineHeight: 1 }}>
+              Alertas
+            </h1>
+            <div style={{ fontSize: 13, color: T.muted, marginTop: 3 }}>
+              Eventos e notificações da plataforma
+            </div>
+          </div>
+        </div>
         <button onClick={load} style={{ display: "flex", alignItems: "center", gap: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0.5rem 1rem", color: T.text, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
           <RefreshCw size={13} />Atualizar
         </button>
       </div>
 
-      {loading ? <div style={{ color: T.muted }}>Carregando...</div> : alerts.length === 0 ? (
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "2rem", textAlign: "center" }}>
-          <CheckCircle size={32} color={T.success} style={{ marginBottom: "0.75rem" }} />
-          <div style={{ color: T.text, fontSize: 14, fontWeight: 600 }}>Sem alertas ativos</div>
-          <div style={{ color: T.muted, fontSize: 13, marginTop: 4 }}>A plataforma está operando normalmente.</div>
+      {/* ── Content ── */}
+      {loading ? (
+        <div style={{ color: T.muted, padding: "2rem", textAlign: "center" }}>Carregando...</div>
+
+      ) : alerts.length === 0 ? (
+        /* Empty state */
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "3rem 2rem", textAlign: "center" }}>
+          <CheckCircle size={36} color={T.success} style={{ marginBottom: "0.875rem" }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 4 }}>Sem alertas ativos</div>
+          <div style={{ fontSize: 13, color: T.muted }}>A plataforma está operando normalmente.</div>
         </div>
+
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {alerts.map(a => (
-            <div key={a.id} style={{ background: T.card, border: `1px solid ${levelColor(a.level)}33`, borderRadius: 10, padding: "1rem 1.25rem", display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <AlertCircle size={16} color={levelColor(a.level)} style={{ flexShrink: 0, marginTop: 2 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{a.title || a.message || "Alerta"}</span>
-                  <Badge color={levelColor(a.level)}>{a.level || "info"}</Badge>
+        /* Alert list */
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {alerts.map((a, idx) => {
+            const cfg         = alertConfig(a.level, a.type);
+            const IconComp    = cfg.icon;
+            const isLast      = idx === alerts.length - 1;
+            const storeName   = a.carwash_name || a.metadata?.carwash_name || a.metadata?.store_name || null;
+
+            return (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 14,
+                  padding: "1rem 0",
+                  borderBottom: isLast ? "none" : `1px solid ${T.border}`,
+                }}
+              >
+                {/* Icon bubble */}
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                  background: cfg.color + "22",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  marginTop: 1,
+                }}>
+                  <IconComp size={18} color={cfg.color} />
                 </div>
-                {a.description && <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.5 }}>{a.description}</div>}
-                <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{fDatetime(a.created_at)}</div>
+
+                {/* Body */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, color: T.text, fontWeight: 500 }}>
+                      {a.title || a.message || "Alerta"}
+                    </span>
+                    <span style={{
+                      background: cfg.color + "22", color: cfg.color,
+                      borderRadius: 5, padding: "2px 8px",
+                      fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+                      whiteSpace: "nowrap",
+                    }}>
+                      {cfg.badge}
+                    </span>
+                  </div>
+
+                  {storeName && (
+                    <div style={{ fontSize: 12, color: T.muted, marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                      🚗 {storeName}
+                    </div>
+                  )}
+
+                  {a.description && !storeName && (
+                    <div style={{ fontSize: 12, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>
+                      {a.description}
+                    </div>
+                  )}
+                </div>
+
+                {/* Relative time */}
+                <div style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4, flexShrink: 0, paddingTop: 3 }}>
+                  🕐 {relTime(a.created_at)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

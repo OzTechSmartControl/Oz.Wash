@@ -1,21 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, CreditCard, AlertTriangle, XCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { T_DARK } from "../../config/theme";
 import { fDate, money } from "../../utils/formatters";
 
-const planLabel = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual" };
+const planLabel = { monthly: "Plano Mensal", semiannual: "Plano Semestral", annual: "Plano Anual" };
+const planPrice = { monthly: 79.9, semiannual: 399.9, annual: 699.9 };
+const PAGE_SIZE  = 20;
 
 export default function SubscriptionsView({ supabase, T: propT }) {
   const T = propT || T_DARK;
 
-  const Badge = ({ children, color = T.accent }) => (
-    <span style={{ background: color + "22", color, borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>{children}</span>
-  );
-
-  const statusColor = (s) => ({ active: T.success, cancelled: T.danger, pending: T.muted }[s] || T.muted);
-
   const [subs,    setSubs]    = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState("");
+  const [page,    setPage]    = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -24,7 +22,7 @@ export default function SubscriptionsView({ supabase, T: propT }) {
         .from("subscriptions")
         .select("*, carwashes(name)")
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(500);
       setSubs(data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -32,33 +30,188 @@ export default function SubscriptionsView({ supabase, T: propT }) {
 
   useEffect(() => { load(); }, [load]);
 
+  /* ── KPIs ── */
+  const ativas       = subs.filter(s => s.status === "active").length;
+  const inadimplentes = subs.filter(s => s.status === "pending" || s.status === "overdue").length;
+  const canceladas   = subs.filter(s => s.status === "cancelled").length;
+
+  const statusColor = (s) => ({
+    active:    T.success,
+    pending:   T.warn,
+    overdue:   T.warn,
+    cancelled: T.danger,
+  }[s] || T.muted);
+
+  const statusText = (s) => ({
+    active:    "Ativo",
+    pending:   "Inadimplente",
+    overdue:   "Inadimplente",
+    cancelled: "Cancelado",
+  }[s] || s || "—");
+
+  /* ── Filter + pagination ── */
+  const filtered   = subs.filter(s => {
+    const q = search.toLowerCase();
+    return !q
+      || s.carwashes?.name?.toLowerCase().includes(q)
+      || s.email?.toLowerCase().includes(q)
+      || (planLabel[s.plan] || "").toLowerCase().includes(q);
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  /* ── Sub-components ── */
+  const KpiCard = ({ label, value, icon: Icon, color, sub }) => (
+    <div style={{
+      background: T.card, border: `1px solid ${T.border}`, borderRadius: 14,
+      padding: "1.25rem", display: "flex",
+      alignItems: "flex-start", justifyContent: "space-between", gap: 8,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700, marginBottom: 8 }}>{label}</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: 1, color: color || T.text, lineHeight: 1 }}>{value}</div>
+        {sub && <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{sub}</div>}
+      </div>
+      <div style={{ background: (color || T.accent) + "18", borderRadius: 10, padding: 10, flexShrink: 0 }}>
+        <Icon size={18} color={color || T.accent} />
+      </div>
+    </div>
+  );
+
+  const btnPage = (disabled) => ({
+    width: 30, height: 30, borderRadius: 7,
+    background: T.surface, border: `1px solid ${T.border}`,
+    cursor: disabled ? "not-allowed" : "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    color: disabled ? T.muted : T.text, opacity: disabled ? 0.5 : 1,
+  });
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.75rem", flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(26px,6vw,38px)", letterSpacing: 2.5, margin: 0, color: T.text }}>Assinaturas</h1>
+
+      {/* ── Header ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ background: T.accent + "18", borderRadius: 12, padding: 10 }}>
+            <CreditCard size={22} color={T.accent} />
+          </div>
+          <div>
+            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(24px,5vw,36px)", letterSpacing: 2.5, margin: 0, color: T.text, lineHeight: 1 }}>
+              Assinaturas
+            </h1>
+            <div style={{ fontSize: 13, color: T.muted, marginTop: 3 }}>
+              Centro de assinaturas, recorrência e cobrança
+            </div>
+          </div>
+        </div>
         <button onClick={load} style={{ display: "flex", alignItems: "center", gap: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0.5rem 1rem", color: T.text, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
           <RefreshCw size={13} />Atualizar
         </button>
       </div>
-      {loading ? <div style={{ color: T.muted }}>Carregando...</div> : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr>{["Lava Rápido", "Plano", "Status", "Vencimento", "Ref. MP"].map(c => (
-              <th key={c} style={{ textAlign: "left", padding: "0 0.75rem 10px", fontSize: 10, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>{c}</th>
-            ))}</tr></thead>
-            <tbody>
-              {subs.map(s => (
-                <tr key={s.id} style={{ borderBottom: `1px solid ${T.border}` }}>
-                  <td style={{ padding: "0.75rem", fontSize: 13, color: T.text }}>{s.carwashes?.name || "—"}</td>
-                  <td style={{ padding: "0.75rem" }}><Badge color={T.accent}>{planLabel[s.plan] || s.plan || "—"}</Badge></td>
-                  <td style={{ padding: "0.75rem" }}><Badge color={statusColor(s.status)}>{s.status}</Badge></td>
-                  <td style={{ padding: "0.75rem", fontSize: 13, color: T.muted }}>{s.expires_at ? fDate(s.expires_at.substring(0, 10)) : "—"}</td>
-                  <td style={{ padding: "0.75rem", fontSize: 11, color: T.muted, fontFamily: "monospace" }}>{s.mp_external_reference || "—"}</td>
+
+      {/* ── KPI Cards ── */}
+      {!loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+          <KpiCard label="Ativas"        value={ativas}        icon={CreditCard}    color={T.success} />
+          <KpiCard label="Inadimplentes" value={inadimplentes} icon={AlertTriangle} color={T.warn}    />
+          <KpiCard label="Canceladas"    value={canceladas}    icon={XCircle}       color={T.danger}  />
+          <KpiCard label="Gateway"       value="MP"            icon={CreditCard}    color={T.accent}  sub="Mercado Pago" />
+        </div>
+      )}
+
+      {/* ── Table Card ── */}
+      {loading ? (
+        <div style={{ color: T.muted, padding: "2rem", textAlign: "center" }}>Carregando...</div>
+      ) : (
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden" }}>
+
+          {/* Search bar inside card header */}
+          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ position: "relative" }}>
+              <Search size={14} color={T.muted} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              <input
+                style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0.5rem 0.875rem 0.5rem 2rem", color: T.text, fontSize: 13, outline: "none", fontFamily: "'DM Sans', sans-serif", width: 220 }}
+                placeholder="Buscar..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                  {["Plano", "Pagador", "Status", "Valor", "Contratado em", "Expira em"].map(c => (
+                    <th key={c} style={{ textAlign: "left", padding: "0.875rem 1rem", fontSize: 10, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 0.8, whiteSpace: "nowrap" }}>{c}</th>
+                  ))}
                 </tr>
-              ))}
-              {!subs.length && <tr><td colSpan={5} style={{ padding: "2rem", textAlign: "center", color: T.muted }}>Nenhuma assinatura encontrada.</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginated.map(s => (
+                  <tr key={s.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+
+                    {/* Plano */}
+                    <td style={{ padding: "0.875rem 1rem" }}>
+                      <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{planLabel[s.plan] || s.plan || "—"}</div>
+                      {s.mp_external_reference && (
+                        <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Gateway: Mercado Pago</div>
+                      )}
+                    </td>
+
+                    {/* Pagador */}
+                    <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.text }}>
+                      {s.email || s.carwashes?.name || "—"}
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ padding: "0.875rem 1rem" }}>
+                      <span style={{ background: statusColor(s.status) + "22", color: statusColor(s.status), borderRadius: 5, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}>
+                        {statusText(s.status)}
+                      </span>
+                    </td>
+
+                    {/* Valor */}
+                    <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.success, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      {money(planPrice[s.plan] || 0)}
+                    </td>
+
+                    {/* Contratado em */}
+                    <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.muted, whiteSpace: "nowrap" }}>
+                      {s.created_at ? fDate(s.created_at.substring(0, 10)) : "—"}
+                    </td>
+
+                    {/* Expira em */}
+                    <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.muted, whiteSpace: "nowrap" }}>
+                      {s.expires_at ? fDate(s.expires_at.substring(0, 10)) : "—"}
+                    </td>
+                  </tr>
+                ))}
+                {!paginated.length && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "2.5rem", textAlign: "center", color: T.muted }}>
+                      Nenhuma assinatura encontrada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderTop: `1px solid ${T.border}`, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 13, color: T.muted }}>{filtered.length} registro(s)</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={btnPage(page === 1)}>
+                <ChevronLeft size={14} />
+              </button>
+              <span style={{ fontSize: 13, color: T.muted }}>Página {page} de {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={btnPage(page === totalPages)}>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
