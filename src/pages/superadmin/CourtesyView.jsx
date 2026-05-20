@@ -55,9 +55,9 @@ export default function CourtesyView({ supabase, T: propT }) {
     setLoading(true);
     try {
       const { data } = await supabase
-        .from("courtesy_access")
+        .from("courtesy_accesses")
         .select("*, carwashes(name, id)")
-        .order("granted_at", { ascending: false });
+        .order("created_at", { ascending: false });
       setCourtesies(data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -68,7 +68,7 @@ export default function CourtesyView({ supabase, T: propT }) {
   // ── Computed ─────────────────────────────────────────────────
   const now = new Date();
   const statusOf = (c) => {
-    if (c.revoked_at) return "revoked";
+    if (c.status === "revoked" || c.revoked_at) return "revoked";
     if (c.expires_at && new Date(c.expires_at) < now) return "expired";
     return "active";
   };
@@ -88,7 +88,7 @@ export default function CourtesyView({ supabase, T: propT }) {
     if (filter === "revoked" && s !== "revoked") return false;
     if (search) {
       const q = search.toLowerCase();
-      return (c.granted_to_email || "").toLowerCase().includes(q)
+      return (c.email || "").toLowerCase().includes(q)
           || (c.notes || "").toLowerCase().includes(q)
           || (c.carwashes?.name || "").toLowerCase().includes(q);
     }
@@ -109,8 +109,9 @@ export default function CourtesyView({ supabase, T: propT }) {
       const expiresAt = form.accessType === "prazo"
         ? new Date(form.expiresAt + "T23:59:59").toISOString()
         : null;
-      const { error } = await supabase.from("courtesy_access").insert({
-        granted_to_email: form.email.trim(),
+      const { error } = await supabase.from("courtesy_accesses").insert({
+        email: form.email.trim(),
+        access_type: form.accessType,
         expires_at: expiresAt,
         notes: form.notes,
         granted_by: "super_admin",
@@ -122,16 +123,20 @@ export default function CourtesyView({ supabase, T: propT }) {
 
   const revoke = async (id) => {
     if (!confirm("Revogar esta cortesia?")) return;
-    await supabase.from("courtesy_access").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+    await supabase
+      .from("courtesy_accesses")
+      .update({ status: "revoked", revoked_at: new Date().toISOString() })
+      .eq("id", id);
     load();
   };
 
   const revokeByEmail = async () => {
     if (!revokeEmail.trim()) return;
-    await supabase.from("courtesy_access")
-      .update({ revoked_at: new Date().toISOString() })
-      .eq("granted_to_email", revokeEmail.trim())
-      .is("revoked_at", null);
+    await supabase
+      .from("courtesy_accesses")
+      .update({ status: "revoked", revoked_at: new Date().toISOString() })
+      .eq("email", revokeEmail.trim())
+      .neq("status", "revoked");
     setRevokeModal(false); setRevokeEmail(""); load();
   };
 
@@ -244,7 +249,7 @@ export default function CourtesyView({ supabase, T: propT }) {
                     <tr key={c.id} style={{ borderBottom: `1px solid ${T.border}` }}>
                       {/* Cliente */}
                       <td style={{ padding: "0.875rem 1rem", fontSize: 13, color: T.text, fontWeight: 500 }}>
-                        {c.granted_to_email}
+                        {c.email}
                       </td>
 
                       {/* Duração */}
@@ -261,7 +266,7 @@ export default function CourtesyView({ supabase, T: propT }) {
 
                       {/* Criado em */}
                       <td style={{ padding: "0.875rem 1rem", fontSize: 12, color: T.muted, whiteSpace: "nowrap" }}>
-                        {c.granted_at ? fDate(c.granted_at.substring(0, 10)) : "—"}
+                        {c.created_at ? fDate(c.created_at.substring(0, 10)) : "—"}
                       </td>
 
                       {/* Expiração */}
@@ -276,8 +281,8 @@ export default function CourtesyView({ supabase, T: propT }) {
                         {c.carwashes ? (
                           <div>
                             <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{c.carwashes.name}</div>
-                            <div style={{ fontSize: 11, color: T.muted }}>{c.granted_to_email}</div>
-                            {c.granted_at && <div style={{ fontSize: 10, color: T.muted }}>{fDatetime(c.granted_at)}</div>}
+                            <div style={{ fontSize: 11, color: T.muted }}>{c.email}</div>
+                            {c.created_at && <div style={{ fontSize: 10, color: T.muted }}>{fDatetime(c.created_at)}</div>}
                           </div>
                         ) : (
                           <span style={{ fontSize: 12, color: T.muted }}>—</span>
@@ -287,7 +292,7 @@ export default function CourtesyView({ supabase, T: propT }) {
                       {/* Ações */}
                       <td style={{ padding: "0.875rem 1rem" }}>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <a href={`mailto:${c.granted_to_email}`}
+                          <a href={`mailto:${c.email}`}
                             style={{ display: "inline-flex", alignItems: "center", gap: 5, background: `${T.accent}18`, border: `1px solid ${T.accent}44`, borderRadius: 7, padding: "5px 10px", color: T.accent, cursor: "pointer", fontSize: 11, fontWeight: 600, textDecoration: "none", fontFamily: "'DM Sans', sans-serif" }}>
                             <Mail size={11} />Enviar e-mail
                           </a>
