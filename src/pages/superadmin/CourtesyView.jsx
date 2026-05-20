@@ -106,17 +106,14 @@ export default function CourtesyView({ supabase, T: propT }) {
     if (!form.email.trim()) { setErr("E-mail é obrigatório."); return; }
     if (form.accessType === "prazo" && !form.expiresAt) { setErr("Selecione a data de expiração."); return; }
     try {
-      const expiresAt = form.accessType === "prazo"
-        ? new Date(form.expiresAt + "T23:59:59").toISOString()
-        : null;
-      const { error } = await supabase.from("courtesy_access").insert({
-        email: form.email.trim(),
-        expires_at: expiresAt,
-        notes: form.notes,
-        granted_by: "super_admin",
-      });
-      if (error) throw new Error(error.message);
-      setModal(false); load();
+      /* ── Descobrir colunas reais da tabela ── */
+      const { data: probe, error: probeErr } = await supabase
+        .from("courtesy_access")
+        .select("*")
+        .limit(1);
+      if (probeErr) throw new Error("Probe error: " + probeErr.message);
+      const cols = probe?.length > 0 ? Object.keys(probe[0]).join(", ") : "TABELA VAZIA — sem linhas para inspecionar";
+      throw new Error("COLUNAS DA TABELA: " + cols);
     } catch (e) { setErr(e.message); }
   };
 
