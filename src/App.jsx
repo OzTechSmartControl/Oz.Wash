@@ -1755,7 +1755,18 @@ export default function App() {
         if (user.error || !user.id) { logout(); return; }
 
         const prof = await api.getProfile(user.id, token);
-        if (!prof) { logout(); return; }
+        if (!prof) {
+          // New OTP user — no profile row yet. Check courtesy access by JWT email.
+          const acc = await checkCurrentUserAccess(token, null);
+          if (acc?.reason === "courtesy_pending_onboarding") {
+            setProfile({ id: user.id, email: user.email });
+            setAccessInfo(acc);
+            setLoading(false);
+          } else {
+            logout();
+          }
+          return;
+        }
 
         setProfile({ ...prof, email: user.email });
 
