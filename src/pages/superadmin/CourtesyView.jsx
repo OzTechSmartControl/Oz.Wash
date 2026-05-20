@@ -107,29 +107,23 @@ export default function CourtesyView({ supabase, T: propT }) {
     if (!email) { setErr("E-mail é obrigatório."); return; }
     if (form.accessType === "prazo" && !form.expiresAt) { setErr("Selecione a data de expiração."); return; }
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       const expiresAt = form.accessType === "prazo"
         ? new Date(form.expiresAt + "T23:59:59").toISOString()
         : null;
 
-      // 1. Insere a cortesia no banco
-      const { error: insertErr } = await supabase.from("courtesy_access").insert({
-        granted_to_email: email,
-        expires_at:       expiresAt,
-        notes:            form.notes || null,
-        granted_by:       user?.id  || null,
+      // 1. Insere via RPC SECURITY DEFINER (bypassa RLS)
+      const { error: insertErr } = await supabase.rpc("grant_courtesy_access", {
+        p_email:      email,
+        p_expires_at: expiresAt,
+        p_notes:      form.notes || null,
       });
       if (insertErr) throw new Error(insertErr.message);
 
-      // 2. Envia magic link de acesso (funciona para usuários novos e existentes)
-      //    O cliente clica no link → autentica → é direcionado ao onboarding do lava rápido
+      // 2. Envia magic link (funciona para usuários novos e existentes)
       const redirectTo = `${window.location.origin}/?courtesy=true`;
       await supabase.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: redirectTo,
-          shouldCreateUser: true, // cria conta se ainda não existir
-        },
+        options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
       });
 
       setModal(false); load();
@@ -138,20 +132,13 @@ export default function CourtesyView({ supabase, T: propT }) {
 
   const revoke = async (id) => {
     if (!confirm("Revogar esta cortesia?")) return;
-    await supabase
-      .from("courtesy_access")
-      .update({ revoked_at: new Date().toISOString() })
-      .eq("id", id);
+    await supabase.rpc("revoke_courtesy_by_id", { p_id: id });
     load();
   };
 
   const revokeByEmail = async () => {
     if (!revokeEmail.trim()) return;
-    await supabase
-      .from("courtesy_access")
-      .update({ revoked_at: new Date().toISOString() })
-      .eq("granted_to_email", revokeEmail.trim().toLowerCase())
-      .is("revoked_at", null);
+    await supabase.rpc("revoke_courtesy_by_email", { p_email: revokeEmail.trim().toLowerCase() });
     setRevokeModal(false); setRevokeEmail(""); load();
   };
 
