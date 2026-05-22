@@ -1719,8 +1719,18 @@ export default function App() {
   // Detect Supabase magic-link / email-confirmation (token arrives in URL hash)
   useEffect(() => {
     const hash = window.location.hash;
+    if (!hash) return;
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+
+    // OTP error (expired or invalid link)
+    if (params.get("error_code") === "otp_expired" || params.get("error") === "access_denied") {
+      window.history.replaceState({}, "", window.location.pathname);
+      alert("O link de acesso expirou ou é inválido.\nSolicite um novo convite ao administrador.");
+      return;
+    }
+
+    // Valid magic link
     if (hash.includes("access_token=")) {
-      const params = new URLSearchParams(hash.replace(/^#/, ""));
       const at = params.get("access_token");
       const rt = params.get("refresh_token");
       if (at) {
