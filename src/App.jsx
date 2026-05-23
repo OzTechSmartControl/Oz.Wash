@@ -1737,7 +1737,12 @@ export default function App() {
     if (hash.includes("access_token=")) {
       const at = params.get("access_token");
       const rt = params.get("refresh_token");
+      const type = params.get("type"); // "signup" ou "magiclink" = usuário de cortesia OTP
       if (at) {
+        // Marca cortesia via localStorage — lido no bootstrap antes de qualquer chamada
+        if (type === "signup" || type === "magiclink") {
+          localStorage.setItem("oz_courtesy_signup", "true");
+        }
         window.history.replaceState({}, "", window.location.pathname);
         localStorage.setItem("oz_cw_token", at);
         if (rt) localStorage.setItem("oz_cw_refresh", rt);
@@ -1749,6 +1754,7 @@ export default function App() {
   const logout = useCallback(() => {
     localStorage.removeItem("oz_cw_token");
     localStorage.removeItem("oz_cw_refresh");
+    localStorage.removeItem("oz_courtesy_signup");
     setToken(""); setProfile(null); setShop(null); setAccessInfo(null);
     resetTenantTheme();
   }, []);
@@ -1770,10 +1776,12 @@ export default function App() {
 
         const prof = await api.getProfile(user.id, token);
         if (!prof) {
-          // New OTP user — no profile row yet. Verifica cortesia pelo JWT email.
-          // Também aceita ?courtesy=true na URL como fallback (caso o RPC falhe).
+          // Novo usuário OTP — sem profile ainda. Verifica cortesia pelo email do JWT.
+          // Fallbacks: flag localStorage (type=signup no hash) ou ?courtesy=true na URL.
+          const isCourtesyFlag = localStorage.getItem("oz_courtesy_signup") === "true";
           const acc = await checkCurrentUserAccess(token, null);
-          if (acc?.reason === "courtesy_pending_onboarding" || isCourtesyOtp) {
+          if (acc?.reason === "courtesy_pending_onboarding" || isCourtesyFlag || isCourtesyOtp) {
+            localStorage.removeItem("oz_courtesy_signup");
             setProfile({ id: user.id, email: user.email });
             setAccessInfo({ has_access: true, reason: "courtesy_pending_onboarding" });
             setLoading(false);
@@ -1799,8 +1807,10 @@ export default function App() {
           setAccessInfo({ has_access: true, reason: "super_admin" });
         } else {
           // No carwash yet — could be courtesy pending onboarding
+          const isCourtesyFlag = localStorage.getItem("oz_courtesy_signup") === "true";
           const acc = await checkCurrentUserAccess(token, prof);
-          if (isCourtesyOtp && acc?.reason !== "courtesy_pending_onboarding") {
+          if ((isCourtesyFlag || isCourtesyOtp) && acc?.reason !== "courtesy_pending_onboarding") {
+            localStorage.removeItem("oz_courtesy_signup");
             setAccessInfo({ has_access: true, reason: "courtesy_pending_onboarding" });
           } else {
             setAccessInfo(acc);

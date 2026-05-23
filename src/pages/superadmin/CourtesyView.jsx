@@ -136,7 +136,7 @@ export default function CourtesyView({ supabase, T: propT }) {
 
       // 2. Envia magic link via cliente anon (não pode usar JWT autenticado aqui)
       // Sempre usa a URL de produção para o redirect — independente de onde o admin acessa
-      const redirectTo = `https://ozwash.vercel.app/?courtesy=true`;
+      const redirectTo = `https://ozwash.vercel.app`;
       await supabaseAnon.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
@@ -147,7 +147,7 @@ export default function CourtesyView({ supabase, T: propT }) {
   };
 
   const resendInvite = async (email) => {
-    const redirectTo = `https://ozwash.vercel.app/?courtesy=true`;
+    const redirectTo = `https://ozwash.vercel.app`;
     const { error } = await supabaseAnon.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
