@@ -1821,6 +1821,19 @@ export default function App() {
     })();
   }, [token]);
 
+  // Preview mode — acesso direto para ver a tela sem autenticação
+  // URL: /ozwash.vercel.app/?preview=onboarding
+  if (new URLSearchParams(window.location.search).get("preview") === "onboarding") {
+    return (
+      <Onboarding
+        isCourtesy={true}
+        courtesyToken=""
+        courtesyEmail="preview@demo.com"
+        onComplete={() => alert("Preview: onboarding concluído!")}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
