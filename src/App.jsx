@@ -1696,6 +1696,10 @@ export default function App() {
   const [themeMode,  setThemeMode]  = useState(() => localStorage.getItem("oz_theme") || "dark");
   const [postPaymentPlan, setPostPaymentPlan] = useState(null);
   const [showPlans, setShowPlans]   = useState(false);
+  // Captura ?courtesy=true da URL antes de qualquer limpeza do hash effect
+  const [isCourtesyOtp] = useState(() =>
+    new URLSearchParams(window.location.search).get("courtesy") === "true"
+  );
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
@@ -1766,11 +1770,12 @@ export default function App() {
 
         const prof = await api.getProfile(user.id, token);
         if (!prof) {
-          // New OTP user — no profile row yet. Check courtesy access by JWT email.
+          // New OTP user — no profile row yet. Verifica cortesia pelo JWT email.
+          // Também aceita ?courtesy=true na URL como fallback (caso o RPC falhe).
           const acc = await checkCurrentUserAccess(token, null);
-          if (acc?.reason === "courtesy_pending_onboarding") {
+          if (acc?.reason === "courtesy_pending_onboarding" || isCourtesyOtp) {
             setProfile({ id: user.id, email: user.email });
-            setAccessInfo(acc);
+            setAccessInfo({ has_access: true, reason: "courtesy_pending_onboarding" });
             setLoading(false);
           } else {
             logout();
@@ -1795,7 +1800,11 @@ export default function App() {
         } else {
           // No carwash yet — could be courtesy pending onboarding
           const acc = await checkCurrentUserAccess(token, prof);
-          setAccessInfo(acc);
+          if (isCourtesyOtp && acc?.reason !== "courtesy_pending_onboarding") {
+            setAccessInfo({ has_access: true, reason: "courtesy_pending_onboarding" });
+          } else {
+            setAccessInfo(acc);
+          }
         }
       } catch (e) { console.error(e); logout(); }
       setLoading(false);
