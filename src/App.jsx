@@ -2109,7 +2109,7 @@ export default function App() {
           </div>
         )}
 
-        <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2rem", maxWidth: 1200, width: "100%" }}>
+        <main style={{ flex: 1, padding: isMobile ? "1.25rem 1rem" : "2rem 2rem", width: "100%", minWidth: 0, overflow: "auto" }}>
           {renderView()}
         </main>
       </div>
