@@ -346,9 +346,26 @@ function Sidebar({ active, onNav, profile, shop, onLogout, isMobile, open, onClo
   const sidebarContent = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.sidebar, borderRight: `1px solid ${T.border}` }}>
       {/* Logo */}
-      <div style={{ padding: "1.5rem 1.25rem 1rem", borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>Oz.LavaRápido</div>
-        {shop?.name && <div style={{ fontSize: 12, color: T.muted, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shop.name}</div>}
+      <div style={{ padding: "1.25rem 1.25rem 1rem", borderBottom: `1px solid ${T.border}` }}>
+        {shop?.logo_url ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img
+              src={shop.logo_url}
+              alt="logo"
+              style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.border}`, flexShrink: 0 }}
+              onError={e => { e.currentTarget.style.display = "none"; }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>Oz.LavaRápido</div>
+              {shop?.name && <div style={{ fontSize: 11, color: T.muted, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shop.name}</div>}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>Oz.LavaRápido</div>
+            {shop?.name && <div style={{ fontSize: 12, color: T.muted, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shop.name}</div>}
+          </>
+        )}
       </div>
 
       {/* Nav items */}
