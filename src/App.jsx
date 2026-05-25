@@ -1766,6 +1766,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [themeMode,  setThemeMode]  = useState(() => localStorage.getItem("oz_theme") || "dark");
   const [postPaymentPlan, setPostPaymentPlan] = useState(null);
+  const [recoveryToken,  setRecoveryToken]  = useState(null); // type=recovery no hash
   const [showPlans, setShowPlans]   = useState(false);
   // Captura ?courtesy=true da URL antes de qualquer limpeza do hash effect
   const [isCourtesyOtp] = useState(() =>
@@ -1808,13 +1809,20 @@ export default function App() {
     if (hash.includes("access_token=")) {
       const at = params.get("access_token");
       const rt = params.get("refresh_token");
-      const type = params.get("type"); // "signup" ou "magiclink" = usuário de cortesia OTP
+      const type = params.get("type"); // "signup" | "magiclink" | "recovery"
       if (at) {
-        // Marca cortesia via localStorage — lido no bootstrap antes de qualquer chamada
+        window.history.replaceState({}, "", window.location.pathname);
+
+        if (type === "recovery") {
+          // Redefinição de senha — NÃO loga, abre a tela de reset
+          setRecoveryToken(at);
+          return;
+        }
+
+        // Cortesia / magic link — loga normalmente
         if (type === "signup" || type === "magiclink") {
           localStorage.setItem("oz_courtesy_signup", "true");
         }
-        window.history.replaceState({}, "", window.location.pathname);
         localStorage.setItem("oz_cw_token", at);
         if (rt) localStorage.setItem("oz_cw_refresh", rt);
         setToken(at);
@@ -1931,9 +1939,9 @@ export default function App() {
     );
   }
 
-  // Password reset flow
-  if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
-    return <ResetPassword token={token} onDone={logout} />;
+  // Password reset flow (token capturado no hash effect antes de limpar a URL)
+  if (recoveryToken) {
+    return <ResetPassword token={recoveryToken} onDone={() => { setRecoveryToken(null); logout(); }} />;
   }
 
   // Super Admin
