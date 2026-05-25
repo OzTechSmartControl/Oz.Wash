@@ -71,6 +71,25 @@ const api = {
     fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers: hdr(tok) }),
 };
 
+const uploadBrandLogo = async (tok, file, shopId) => {
+  const rawExt = file.name.split(".").pop() || "png";
+  const ext    = rawExt.toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+  const path   = `${shopId}/logo-admin-${Date.now()}.${ext}`;
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/logos/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON,
+      Authorization: `Bearer ${tok}`,
+      "Content-Type": file.type || "application/octet-stream",
+      "x-upsert": "true",
+      "cache-control": "3600",
+    },
+    body: file,
+  });
+  if (!r.ok) { const text = await r.text().catch(() => ""); throw new Error(text || "Erro no upload da logo."); }
+  return `${SUPABASE_URL}/storage/v1/object/public/logos/${path}?v=${Date.now()}`;
+};
+
 const checkCurrentUserAccess = async (tok, profile) => {
   const isSuperAdmin = profile?.is_super_admin === true || profile?.role === "super_admin";
   if (isSuperAdmin) return { has_access: true, reason: "super_admin" };
@@ -1388,19 +1407,42 @@ function ReportsView({ token, carwashId, isMobile }) {
 
 // ── SETTINGS VIEW ─────────────────────────────────────────────
 function SettingsView({ token, carwashId, shop, onShopUpdate, themeMode, onToggleTheme }) {
-  const [form, setForm] = useState({ name: shop?.name || "", logo_url: shop?.logo_url || "", accent_color: shop?.accent_color || "#4db8ff" });
-  const [err,  setErr]  = useState("");
-  const [ok,   setOk]   = useState(false);
+  const [form,        setForm]        = useState({ name: shop?.name || "", accent_color: shop?.accent_color || "#4db8ff" });
+  const [logoFile,    setLogoFile]    = useState(null);
+  const [logoPreview, setLogoPreview] = useState("");
+  const [err,         setErr]         = useState("");
+  const [ok,          setOk]          = useState(false);
+  const [uploading,   setUploading]   = useState(false);
+
+  useEffect(() => {
+    if (!logoFile) { setLogoPreview(""); return; }
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
+
+  const currentLogo = logoPreview || shop?.logo_url || "";
 
   const save = async () => {
     setErr(""); setOk(false);
     if (!form.name.trim()) { setErr("Nome obrigatório."); return; }
+    setUploading(true);
     try {
-      const rows = await api.update("carwashes", carwashId, { name: form.name.trim(), logo_url: form.logo_url, accent_color: form.accent_color }, token);
+      let logo_url = shop?.logo_url ?? null;
+      if (logoFile) {
+        logo_url = await uploadBrandLogo(token, logoFile, carwashId);
+      }
+      const rows = await api.update("carwashes", carwashId, {
+        name: form.name.trim(),
+        logo_url,
+        accent_color: form.accent_color,
+      }, token);
       const updated = Array.isArray(rows) ? rows[0] : rows;
       onShopUpdate(updated);
+      setLogoFile(null);
       setOk(true);
     } catch (e) { setErr(e.message); }
+    setUploading(false);
   };
 
   return (
@@ -1409,8 +1451,48 @@ function SettingsView({ token, carwashId, shop, onShopUpdate, themeMode, onToggl
       <Card style={{ maxWidth: 480 }}>
         <ErrorBar msg={err} />
         {ok && <div style={{ background: T.successBg, border: `1px solid ${T.success}44`, borderRadius: 8, padding: "0.625rem 1rem", color: T.success, fontSize: 13, marginBottom: "1rem" }}>Configurações salvas.</div>}
-        <FInput label="Nome do Lava Rápido" value={form.name}        onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-        <FInput label="URL do Logo"         value={form.logo_url}    onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} />
+
+        <FInput label="Nome do Lava Rápido" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+
+        {/* ── Logo ── */}
+        <FG label="Logo">
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Preview circle */}
+            <div style={{
+              width: 80, height: 80, borderRadius: "50%", flexShrink: 0,
+              background: T.surface, border: `2px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden",
+            }}>
+              {currentLogo
+                ? <img src={currentLogo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <Upload size={26} color={T.muted} />}
+            </div>
+            <div>
+              <label style={{ cursor: "pointer" }}>
+                <div
+                  style={{
+                    background: T.surface, border: `1px solid ${T.border}`,
+                    borderRadius: 8, padding: "0.5rem 1.1rem", fontSize: 13,
+                    color: T.text, cursor: "pointer", display: "inline-flex",
+                    alignItems: "center", gap: 6,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+                >
+                  <Upload size={14} />
+                  {currentLogo ? "Alterar Logo" : "Escolher arquivo"}
+                </div>
+                <input type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { setLogoFile(e.target.files[0] || null); setOk(false); }} />
+              </label>
+              {logoFile
+                ? <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>{logoFile.name}</div>
+                : <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>JPG, PNG ou SVG · Recomendado 200×200px</div>}
+            </div>
+          </div>
+        </FG>
+
         <FG label="Cor de Destaque">
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <input type="color" value={form.accent_color} onChange={e => setForm(f => ({ ...f, accent_color: e.target.value }))} style={{ width: 44, height: 36, borderRadius: 6, border: `1px solid ${T.border}`, cursor: "pointer", background: "none" }} />
@@ -1423,7 +1505,9 @@ function SettingsView({ token, carwashId, shop, onShopUpdate, themeMode, onToggl
             <span style={{ fontSize: 13, color: T.muted }}>{themeMode === "dark" ? "Modo Escuro" : "Modo Claro"}</span>
           </div>
         </FG>
-        <Btn onClick={save} style={{ marginTop: "0.5rem" }}><Check size={14} />Salvar Configurações</Btn>
+        <Btn onClick={save} disabled={uploading} style={{ marginTop: "0.5rem" }}>
+          <Check size={14} />{uploading ? "Salvando..." : "Salvar Configurações"}
+        </Btn>
       </Card>
     </div>
   );

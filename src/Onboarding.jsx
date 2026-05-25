@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronRight, ChevronLeft, Check, Gift } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, ChevronLeft, Check, Gift, Upload } from "lucide-react";
 
 const SUPABASE_URL  = "https://lolvvhdixbfcrquisnpi.supabase.co";
 const SUPABASE_ANON = "sb_publishable_Ud8gUkUl9A3hVrJQTcsI_g_uvwskZax";
@@ -50,6 +50,25 @@ const canRegister = (email) =>
     headers: { apikey: SUPABASE_ANON, "Content-Type": "application/json" },
     body: JSON.stringify({ p_email: email }),
   }).then(r => r.json());
+
+const uploadBrandLogo = async (tok, file) => {
+  const rawExt = file.name.split(".").pop() || "png";
+  const ext    = rawExt.toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+  const path   = `onboarding/logo-${Date.now()}.${ext}`;
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/logos/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON,
+      Authorization: `Bearer ${tok}`,
+      "Content-Type": file.type || "application/octet-stream",
+      "x-upsert": "true",
+      "cache-control": "3600",
+    },
+    body: file,
+  });
+  if (!r.ok) { const text = await r.text().catch(() => ""); throw new Error(text || "Erro no upload da logo."); }
+  return `${SUPABASE_URL}/storage/v1/object/public/logos/${path}?v=${Date.now()}`;
+};
 
 const inputSt = {
   width: "100%", background: T.surface, border: `1px solid ${T.border}`,
@@ -107,8 +126,17 @@ export default function Onboarding({
   // token state: pre-filled for courtesy users
   const [token, setToken] = useState(courtesyToken || "");
 
-  const [account, setAccount] = useState({ email: courtesyEmail || "", password: "", confirm: "" });
-  const [shop,    setShop]    = useState({ name: "", phone: "", accent_color: "#4db8ff" });
+  const [account,     setAccount]     = useState({ email: courtesyEmail || "", password: "", confirm: "" });
+  const [shop,        setShop]        = useState({ name: "", phone: "", accent_color: "#4db8ff" });
+  const [logoFile,    setLogoFile]    = useState(null);
+  const [logoPreview, setLogoPreview] = useState("");
+
+  useEffect(() => {
+    if (!logoFile) { setLogoPreview(""); return; }
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
 
   /* ── Step 0 (paid only): create account ── */
   const handleCreateAccount = async () => {
@@ -147,9 +175,15 @@ export default function Onboarding({
     }
 
     try {
+      // Upload logo (opcional — falha não bloqueia o cadastro)
+      let logoUrl = null;
+      if (logoFile) {
+        try { logoUrl = await uploadBrandLogo(usedToken, logoFile); }
+        catch (e) { console.warn("Logo upload ignorado:", e.message); }
+      }
+
       if (isCourtesy) {
         // RPC SECURITY DEFINER: cria carwash + vincula cortesia + promove perfil
-        // Tudo dentro do RPC para contornar RLS do carwashes
         const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_courtesy_access`, {
           method: "POST",
           headers: hdr(usedToken),
@@ -158,6 +192,7 @@ export default function Onboarding({
             p_name:         shop.name.trim(),
             p_phone:        shop.phone || null,
             p_accent_color: shop.accent_color,
+            p_logo_url:     logoUrl,
           }),
         });
         const data = await res.json();
@@ -167,7 +202,7 @@ export default function Onboarding({
         const res = await fetch(`${SUPABASE_URL}/rest/v1/carwashes`, {
           method: "POST",
           headers: { ...hdr(usedToken), Prefer: "return=representation" },
-          body: JSON.stringify({ name: shop.name.trim(), phone: shop.phone, accent_color: shop.accent_color }),
+          body: JSON.stringify({ name: shop.name.trim(), phone: shop.phone, accent_color: shop.accent_color, logo_url: logoUrl }),
         });
         const carwashes = await res.json();
         if (!res.ok) { setErr(carwashes.message || "Erro ao criar lava rápido."); setLoading(false); return; }
@@ -261,6 +296,41 @@ export default function Onboarding({
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 1.5, color: T.text, marginBottom: "1.5rem" }}>Seu Lava Rápido</div>
               <FInput label="Nome do Lava Rápido *" value={shop.name}  onChange={e => setShop(s => ({ ...s, name: e.target.value }))} placeholder="Ex: Lava Rápido do João" />
               <FInput label="Telefone"               value={shop.phone} onChange={e => setShop(s => ({ ...s, phone: e.target.value }))} placeholder="(11) 99999-9999" />
+
+              {/* Logo upload — opcional */}
+              <FG label="Logo (opcional)">
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{
+                    width: 72, height: 72, borderRadius: "50%",
+                    background: "#13131a", border: "2px solid #2a2a3a",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden", flexShrink: 0,
+                  }}>
+                    {logoPreview
+                      ? <img src={logoPreview} alt="logo preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : <Upload size={22} color="#706b63" />}
+                  </div>
+                  <div>
+                    <label style={{ cursor: "pointer" }}>
+                      <div style={{
+                        background: "#13131a", border: "1px solid #2a2a3a",
+                        borderRadius: 8, padding: "0.45rem 1rem", fontSize: 13,
+                        color: "#ece8e0", cursor: "pointer", display: "inline-block",
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = "#4db8ff"}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = "#2a2a3a"}>
+                        {logoFile ? "Trocar arquivo" : "Escolher arquivo"}
+                      </div>
+                      <input type="file" accept="image/*" style={{ display: "none" }}
+                        onChange={e => setLogoFile(e.target.files[0] || null)} />
+                    </label>
+                    {logoFile
+                      ? <div style={{ fontSize: 12, color: "#706b63", marginTop: 5 }}>{logoFile.name}</div>
+                      : <div style={{ fontSize: 12, color: "#706b63", marginTop: 5 }}>JPG, PNG ou SVG · 200×200px</div>}
+                  </div>
+                </div>
+              </FG>
+
               <FG label="Cor de Destaque">
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
                   {ACCENT_PRESETS.map(p => (
