@@ -1877,7 +1877,7 @@ export default function App() {
         isCourtesy={true}
         courtesyToken={token}
         courtesyEmail={profile.email}
-        onComplete={handleLogin}
+        onComplete={() => window.location.reload()}
       />
     );
   }
