@@ -2015,6 +2015,12 @@ export default function App() {
     );
   }
 
+  // Password reset — DEVE vir antes do guard !token, senão o LoginScreen
+  // é renderizado antes de checar o recoveryToken capturado no hash effect
+  if (recoveryToken) {
+    return <ResetPassword token={recoveryToken} onDone={() => { setRecoveryToken(null); logout(); }} />;
+  }
+
   // No token → show login (unless post-payment)
   if (!token) {
     if (postPaymentPlan) {
@@ -2031,11 +2037,6 @@ export default function App() {
         onToggleTheme={toggleTheme}
       />
     );
-  }
-
-  // Password reset flow (token capturado no hash effect antes de limpar a URL)
-  if (recoveryToken) {
-    return <ResetPassword token={recoveryToken} onDone={() => { setRecoveryToken(null); logout(); }} />;
   }
 
   // Super Admin
