@@ -138,25 +138,41 @@ export default function Onboarding({
     setErr(""); setLoading(true);
     if (!shop.name.trim()) { setErr("Nome do lava rápido é obrigatório."); setLoading(false); return; }
     const usedToken = courtesyToken || token;
-    try {
-      // 1. Create carwash
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/carwashes`, {
-        method: "POST",
-        headers: { ...hdr(usedToken), Prefer: "return=representation" },
-        body: JSON.stringify({ name: shop.name.trim(), phone: shop.phone, accent_color: shop.accent_color }),
-      });
-      const carwashes = await res.json();
-      if (!res.ok) { setErr(carwashes.message || "Erro ao criar lava rápido."); setLoading(false); return; }
-      const carwash = Array.isArray(carwashes) ? carwashes[0] : carwashes;
 
-      // 2. Link access
+    // Preview/demo sem token — avança direto para a tela de sucesso
+    if (!usedToken) {
+      setStep(isCourtesy ? 1 : 2);
+      setLoading(false);
+      return;
+    }
+
+    try {
       if (isCourtesy) {
-        await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_courtesy_access`, {
+        // RPC SECURITY DEFINER: cria carwash + vincula cortesia + promove perfil
+        // Tudo dentro do RPC para contornar RLS do carwashes
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_courtesy_access`, {
           method: "POST",
           headers: hdr(usedToken),
-          body: JSON.stringify({ p_email: courtesyEmail, p_carwash_id: carwash.id }),
+          body: JSON.stringify({
+            p_email:        courtesyEmail,
+            p_name:         shop.name.trim(),
+            p_phone:        shop.phone || null,
+            p_accent_color: shop.accent_color,
+          }),
         });
+        const data = await res.json();
+        if (!res.ok) { setErr(data.message || "Erro ao criar lava rápido."); setLoading(false); return; }
       } else {
+        // Fluxo pago: INSERT direto (RLS liberado para autenticados) + claim subscription
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/carwashes`, {
+          method: "POST",
+          headers: { ...hdr(usedToken), Prefer: "return=representation" },
+          body: JSON.stringify({ name: shop.name.trim(), phone: shop.phone, accent_color: shop.accent_color }),
+        });
+        const carwashes = await res.json();
+        if (!res.ok) { setErr(carwashes.message || "Erro ao criar lava rápido."); setLoading(false); return; }
+        const carwash = Array.isArray(carwashes) ? carwashes[0] : carwashes;
+
         await fetch(`${SUPABASE_URL}/rest/v1/rpc/claim_paid_subscription`, {
           method: "POST",
           headers: hdr(usedToken),
@@ -164,7 +180,7 @@ export default function Onboarding({
         });
       }
 
-      // Advance to "Pronto!" step
+      // Avança para "Pronto!"
       setStep(isCourtesy ? 1 : 2);
     } catch (e) { setErr(e.message); }
     setLoading(false);
