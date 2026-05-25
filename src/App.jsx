@@ -346,17 +346,19 @@ function Sidebar({ active, onNav, profile, shop, onLogout, isMobile, open, onClo
   const sidebarContent = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.sidebar, borderRight: `1px solid ${T.border}` }}>
       {/* Logo */}
-      <div style={{ padding: "1.25rem 1.25rem 1rem", borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ padding: "1.25rem 1.25rem 1rem", borderBottom: `1px solid ${T.border}`, textAlign: "center" }}>
         {shop?.logo_url && (
           <img
             src={shop.logo_url}
             alt="logo"
-            style={{ width: "100%", height: 80, objectFit: "contain", borderRadius: 10, marginBottom: 10, display: "block" }}
+            style={{ width: "100%", height: 80, objectFit: "contain", borderRadius: 10, marginBottom: 8, display: "block" }}
             onError={e => { e.currentTarget.style.display = "none"; }}
           />
         )}
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>Oz.LavaRápido</div>
-        {shop?.name && <div style={{ fontSize: 12, color: T.muted, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shop.name}</div>}
+        {shop?.name
+          ? <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>{shop.name}</div>
+          : <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 2, color: T.accent, lineHeight: 1 }}>Oz.LavaRápido</div>
+        }
       </div>
 
       {/* Nav items */}
