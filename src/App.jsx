@@ -1479,6 +1479,8 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
   const [forgot,    setForgot]    = useState(false);
   const [sentReset, setSentReset] = useState(false);
   const [imgErr,    setImgErr]    = useState(false);
+  const [useOtp,    setUseOtp]    = useState(false);
+  const [sentOtp,   setSentOtp]   = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -1489,6 +1491,28 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
     } else {
       setErr(data.error_description || data.message || "Credenciais inválidas.");
     }
+    setLoading(false);
+  };
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setErr(""); setLoading(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          create_user: false,
+          options: { emailRedirectTo: "https://ozwash.vercel.app" },
+        }),
+      });
+      if (res.ok) { setSentOtp(true); }
+      else {
+        const d = await res.json();
+        setErr(d.msg || d.message || "Não foi possível enviar o link.");
+      }
+    } catch (e) { setErr(e.message); }
     setLoading(false);
   };
 
@@ -1557,7 +1581,7 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
 
       {/* ── Card ── */}
       <div style={{ width: "100%", maxWidth: 400, background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: "2rem", boxShadow: `0 8px 40px rgba(0,0,0,0.4)` }}>
-        {!forgot ? (
+        {!forgot && !useOtp ? (
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: "1.5rem" }}>
               <div style={{ fontSize: 20, fontWeight: 600, color: T.text, fontFamily: "'DM Sans', sans-serif", lineHeight: 1 }}>Entrar</div>
@@ -1602,17 +1626,64 @@ function LoginScreen({ onLogin, onShowPlans, themeMode, onToggleTheme }) {
               {loading ? "Entrando..." : "Entrar"}
             </button>
 
-            {/* Divider + Assinar */}
+            {/* Divider + opções */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "1.25rem 0" }}>
               <div style={{ flex: 1, height: 1, background: T.border }} />
               <span style={{ color: T.muted, fontSize: 12 }}>ou</span>
               <div style={{ flex: 1, height: 1, background: T.border }} />
             </div>
-            <div style={{ textAlign: "center" }}>
-              <span style={{ color: T.muted, fontSize: 13 }}>Não tem uma conta? </span>
-              <button type="button" onClick={onShowPlans}
-                style={{ background: "none", border: "none", color: T.accent, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, padding: 0 }}>
-                Assinar Plano
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <button type="button" onClick={() => { setUseOtp(true); setSentOtp(false); setErr(""); }}
+                style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 10, padding: "0.6rem 1rem", color: T.text, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
+                Entrar sem senha →
+              </button>
+              <div>
+                <span style={{ color: T.muted, fontSize: 13 }}>Não tem uma conta? </span>
+                <button type="button" onClick={onShowPlans}
+                  style={{ background: "none", border: "none", color: T.accent, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, padding: 0 }}>
+                  Assinar Plano
+                </button>
+              </div>
+            </div>
+          </form>
+
+        ) : !forgot && useOtp && sentOtp ? (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: T.infoBg, border: `1px solid ${T.info}44`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+              <Mail size={24} color={T.accent} />
+            </div>
+            <div style={{ color: T.text, fontWeight: 600, fontSize: 15, marginBottom: 6 }}>Link enviado!</div>
+            <div style={{ color: T.muted, fontSize: 13, marginBottom: "1.5rem", lineHeight: 1.5 }}>
+              Verifique seu e-mail <strong style={{ color: T.text }}>{email}</strong> e clique no link para entrar.
+            </div>
+            <button onClick={() => { setUseOtp(false); setSentOtp(false); setErr(""); }}
+              style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "0.6rem 1.5rem", color: T.text, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+              Voltar ao login
+            </button>
+          </div>
+
+        ) : !forgot && useOtp ? (
+          <form onSubmit={handleSendOtp}>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: 20, fontWeight: 600, color: T.text, fontFamily: "'DM Sans', sans-serif", lineHeight: 1 }}>Entrar sem senha</div>
+              <div style={{ color: T.muted, fontSize: 13, marginTop: 6 }}>Enviaremos um link de acesso para seu e-mail.</div>
+            </div>
+            <ErrorBar msg={err} />
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div style={{ fontSize: 11, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 600 }}>E-MAIL</div>
+              <div style={{ position: "relative" }}>
+                <Mail size={15} color={T.muted} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                <input style={inpSt} type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="seu@email.com" />
+              </div>
+            </div>
+            <button type="submit" disabled={loading}
+              style={{ width: "100%", background: `linear-gradient(135deg, ${T.accent}, ${T.accent}cc)`, color: "#000", border: "none", borderRadius: 10, padding: "0.8rem", fontSize: 15, fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              {loading ? "Enviando..." : "Enviar link de acesso"}
+            </button>
+            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+              <button type="button" onClick={() => { setUseOtp(false); setErr(""); }}
+                style={{ background: "none", border: "none", color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                Voltar ao login com senha
               </button>
             </div>
           </form>
