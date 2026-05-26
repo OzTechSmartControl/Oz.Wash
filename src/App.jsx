@@ -324,6 +324,7 @@ function Sidebar({ active, onNav, profile, shop, onLogout, isMobile, open, onClo
   const adminItems = [
     { id: "dashboard",      label: "Dashboard",         icon: LayoutDashboard },
     { id: "orders",         label: "Ordens de Serviço", icon: Droplets },
+    { id: "appointments",   label: "Agendamentos",      icon: Calendar },
     { id: "clients",        label: "Clientes",          icon: Users },
     { id: "vehicles",       label: "Veículos",          icon: Car },
     { id: "employees",      label: "Funcionários",      icon: Shield },
@@ -336,9 +337,10 @@ function Sidebar({ active, onNav, profile, shop, onLogout, isMobile, open, onClo
   ];
 
   const employeeItems = [
-    { id: "dashboard", label: "Dashboard",         icon: LayoutDashboard },
-    { id: "orders",    label: "Ordens de Serviço", icon: Droplets },
-    { id: "clients",   label: "Clientes",          icon: Users },
+    { id: "dashboard",    label: "Dashboard",         icon: LayoutDashboard },
+    { id: "orders",       label: "Ordens de Serviço", icon: Droplets },
+    { id: "appointments", label: "Agendamentos",      icon: Calendar },
+    { id: "clients",      label: "Clientes",          icon: Users },
   ];
 
   const items = isAdmin ? adminItems : employeeItems;
@@ -1523,6 +1525,248 @@ function SettingsView({ token, carwashId, shop, onShopUpdate, themeMode, onToggl
   );
 }
 
+// ── APPOINTMENTS VIEW ─────────────────────────────────────────
+function AppointmentsView({ token, carwashId, isAdmin, employeeId }) {
+  const todayStr = today();
+
+  const [appointments, setAppointments] = useState([]);
+  const [clients,      setClients]      = useState([]);
+  const [vehicles,     setVehicles]     = useState([]);
+  const [employees,    setEmployees]    = useState([]);
+  const [services,     setServices]     = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [modal,        setModal]        = useState(false);
+  const [editing,      setEditing]      = useState(null);
+  const [err,          setErr]          = useState("");
+  const [dateFilter,   setDateFilter]   = useState(todayStr);
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [converting,   setConverting]   = useState(null);
+
+  const emptyForm = { clientId: "", vehicleId: "", employeeId: employeeId || "", serviceId: "", date: todayStr, time: "", notes: "", status: "agendado" };
+  const [form, setForm] = useState(emptyForm);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [apps, cls, vhc, emps, svcs] = await Promise.all([
+        api.list("appointments", `carwash_id=eq.${carwashId}&order=date.asc,time.asc`, token),
+        api.list("clients",      `carwash_id=eq.${carwashId}&order=name.asc&select=id,name,phone`, token),
+        api.list("vehicles",     `carwash_id=eq.${carwashId}&select=id,client_id,plate,model,brand,color`, token),
+        api.list("employees",    `carwash_id=eq.${carwashId}&status=eq.active&select=id,name`, token),
+        api.list("services",     `carwash_id=eq.${carwashId}&active=eq.true&select=id,name,price`, token),
+      ]);
+      setAppointments(Array.isArray(apps) ? apps : []);
+      setClients(Array.isArray(cls) ? cls : []);
+      setVehicles(Array.isArray(vhc) ? vhc : []);
+      setEmployees(Array.isArray(emps) ? emps : []);
+      setServices(Array.isArray(svcs) ? svcs : []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, [carwashId, token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const clientVehicles = form.clientId ? vehicles.filter(v => String(v.client_id) === String(form.clientId)) : [];
+
+  const openNew  = () => { setEditing(null); setForm(emptyForm); setErr(""); setModal(true); };
+  const openEdit = a  => {
+    setEditing(a);
+    setForm({ clientId: a.client_id || "", vehicleId: a.vehicle_id || "", employeeId: a.employee_id || "", serviceId: a.service_id || "", date: a.date || todayStr, time: a.time?.substring(0,5) || "", notes: a.notes || "", status: a.status || "agendado" });
+    setErr(""); setModal(true);
+  };
+
+  const save = async () => {
+    setErr("");
+    if (!form.date || !form.time) { setErr("Data e horário são obrigatórios."); return; }
+    try {
+      const body = { carwash_id: carwashId, client_id: form.clientId || null, vehicle_id: form.vehicleId || null, employee_id: form.employeeId || null, service_id: form.serviceId || null, date: form.date, time: form.time, notes: form.notes || null, status: form.status };
+      if (editing) await api.update("appointments", editing.id, body, token);
+      else          await api.insert("appointments", body, token);
+      setModal(false); load();
+    } catch (e) { setErr(e.message); }
+  };
+
+  const remove = async (id) => {
+    if (!confirm("Cancelar este agendamento?")) return;
+    try { await api.remove("appointments", id, token); load(); } catch (e) { alert(e.message); }
+  };
+
+  const changeStatus = async (id, status) => {
+    try { await api.update("appointments", id, { status }, token); load(); } catch (e) { alert(e.message); }
+  };
+
+  const convertToOS = async (apt) => {
+    if (!confirm("Converter este agendamento em Ordem de Serviço?\nUma OS será criada e o agendamento será marcado como concluído.")) return;
+    setConverting(apt.id);
+    try {
+      const svc = services.find(s => String(s.id) === String(apt.service_id));
+      await api.insert("service_orders", {
+        carwash_id: carwashId, client_id: apt.client_id, vehicle_id: apt.vehicle_id || null,
+        employee_id: apt.employee_id, service_id: apt.service_id,
+        price: svc?.price || 0, services_price: svc?.price || 0,
+        payment: "PIX", date: apt.date, time: apt.time, notes: apt.notes || null,
+        status: "pendente", extra_services: [], products_sold: [],
+      }, token);
+      await api.update("appointments", apt.id, { status: "concluído" }, token);
+      load();
+    } catch (e) { alert("Erro ao converter: " + e.message); }
+    setConverting(null);
+  };
+
+  const filtered = appointments.filter(a =>
+    (!dateFilter || a.date === dateFilter) &&
+    (statusFilter === "todos" || a.status === statusFilter)
+  );
+
+  const sColor = s => ({ agendado: T.accent, confirmado: T.success, "concluído": T.muted, cancelado: T.danger }[s] || T.muted);
+  const cName  = id => clients.find(c => String(c.id) === String(id))?.name || "Cliente não informado";
+  const eName  = id => employees.find(e => String(e.id) === String(id))?.name || null;
+  const sName  = id => services.find(s => String(s.id) === String(id))?.name || null;
+  const vLabel = id => { const v = vehicles.find(v => String(v.id) === String(id)); return v ? [v.plate, v.model].filter(Boolean).join(" · ") : null; };
+
+  const statusLabels = ["todos", "agendado", "confirmado", "concluído", "cancelado"];
+
+  return (
+    <div>
+      <PageHeader title="Agendamentos" sub={`${filtered.length} agendamento(s) ${dateFilter ? `em ${fDate(dateFilter)}` : ""}`}
+        right={<Btn onClick={openNew}><Plus size={14} />Novo Agendamento</Btn>}
+        onRefresh={load}
+      />
+
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: 10, marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
+        <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+          style={{ ...inputSt, width: "auto", padding: "0.5rem 0.875rem", fontSize: 13, colorScheme: "dark" }} />
+        <button onClick={() => setDateFilter("")}
+          style={{ background: "none", border: "none", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textDecoration: "underline" }}>
+          Ver todos
+        </button>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {statusLabels.map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              style={{ background: statusFilter === s ? T.accent : T.surface, color: statusFilter === s ? "#000" : T.muted, border: `1px solid ${statusFilter === s ? T.accent : T.border}`, borderRadius: 8, padding: "0.4rem 0.8rem", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textTransform: "capitalize" }}>
+              {s === "todos" ? "Todos" : s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista */}
+      {loading ? (
+        <div style={{ color: T.muted, fontSize: 14, padding: "2rem 0", textAlign: "center" }}>Carregando...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "4rem 0", color: T.muted }}>
+          <Calendar size={40} style={{ marginBottom: 12, opacity: 0.3, display: "block", margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Nenhum agendamento</div>
+          <div style={{ fontSize: 13 }}>{dateFilter ? `Nenhum agendamento para ${fDate(dateFilter)}.` : "Nenhum agendamento encontrado."}</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map(apt => (
+            <div key={apt.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderLeft: `4px solid ${sColor(apt.status)}`, borderRadius: 12, padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+
+              {/* Horário */}
+              <div style={{ flexShrink: 0, textAlign: "center", minWidth: 58 }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: T.accent, lineHeight: 1 }}>{apt.time?.substring(0,5) || "--:--"}</div>
+                <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{fDate(apt.date)}</div>
+              </div>
+
+              {/* Infos */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+                  <span style={{ fontWeight: 700, color: T.text, fontSize: 15 }}>{cName(apt.client_id)}</span>
+                  <span style={{ background: sColor(apt.status) + "22", color: sColor(apt.status), border: `1px solid ${sColor(apt.status)}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, textTransform: "capitalize" }}>
+                    {apt.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: T.muted, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  {vLabel(apt.vehicle_id) && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Car size={12} />{vLabel(apt.vehicle_id)}</span>}
+                  {sName(apt.service_id)  && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Wrench size={12} />{sName(apt.service_id)}</span>}
+                  {eName(apt.employee_id) && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Shield size={12} />{eName(apt.employee_id)}</span>}
+                  {apt.notes             && <span style={{ fontStyle: "italic", opacity: 0.8 }}>{apt.notes}</span>}
+                </div>
+              </div>
+
+              {/* Ações */}
+              <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", alignItems: "center" }}>
+                {apt.status === "agendado" && (
+                  <button onClick={() => changeStatus(apt.id, "confirmado")}
+                    style={{ background: T.success + "18", border: `1px solid ${T.success}55`, color: T.success, borderRadius: 7, padding: "0.35rem 0.75rem", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                    Confirmar
+                  </button>
+                )}
+                {(apt.status === "agendado" || apt.status === "confirmado") && apt.client_id && apt.employee_id && apt.service_id && (
+                  <button onClick={() => convertToOS(apt)} disabled={converting === apt.id}
+                    style={{ background: T.accent + "18", border: `1px solid ${T.accent}55`, color: T.accent, borderRadius: 7, padding: "0.35rem 0.75rem", fontSize: 12, fontWeight: 700, cursor: converting === apt.id ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: converting === apt.id ? 0.6 : 1 }}>
+                    {converting === apt.id ? "Convertendo..." : "→ Criar OS"}
+                  </button>
+                )}
+                <button onClick={() => openEdit(apt)}
+                  style={{ background: T.surface, border: `1px solid ${T.border}`, color: T.mutedLight, borderRadius: 7, padding: "0.35rem 0.55rem", cursor: "pointer" }}>
+                  <Edit2 size={13} />
+                </button>
+                {apt.status !== "concluído" && apt.status !== "cancelado" && (
+                  <button onClick={() => remove(apt.id)}
+                    style={{ background: T.dangerBg, border: `1px solid ${T.danger}44`, color: T.danger, borderRadius: 7, padding: "0.35rem 0.55rem", cursor: "pointer" }}>
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal */}
+      {modal && (
+        <Modal title={editing ? "Editar Agendamento" : "Novo Agendamento"} onClose={() => setModal(false)}>
+          <ErrorBar msg={err} />
+          <Row>
+            <FG label="Data *" style={{ flex: 1 }}>
+              <input type="date" style={{ ...inputSt, colorScheme: "dark" }} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            </FG>
+            <FG label="Horário *" style={{ flex: 1 }}>
+              <input type="time" style={{ ...inputSt, colorScheme: "dark" }} value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+            </FG>
+          </Row>
+          <FSelect label="Cliente" value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value, vehicleId: "" }))}>
+            <option value="">Selecione o cliente</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </FSelect>
+          {form.clientId && (
+            <FSelect label="Veículo" value={form.vehicleId} onChange={e => setForm(f => ({ ...f, vehicleId: e.target.value }))}>
+              <option value="">Selecione o veículo</option>
+              {clientVehicles.map(v => <option key={v.id} value={v.id}>{[v.plate, v.brand, v.model, v.color].filter(Boolean).join(" · ")}</option>)}
+            </FSelect>
+          )}
+          <Row>
+            <FSelect label="Funcionário" style={{ flex: 1 }} value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}>
+              <option value="">Selecione</option>
+              {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </FSelect>
+            <FSelect label="Serviço" style={{ flex: 1 }} value={form.serviceId} onChange={e => setForm(f => ({ ...f, serviceId: e.target.value }))}>
+              <option value="">Selecione</option>
+              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </FSelect>
+          </Row>
+          {editing && (
+            <FSelect label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              {["agendado", "confirmado", "concluído", "cancelado"].map(s => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </FSelect>
+          )}
+          <FArea label="Observações" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anotações sobre o agendamento..." />
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
+            <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
+            <Btn onClick={save}><Check size={14} />Salvar</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ── MEU PLANO VIEW ────────────────────────────────────────────
 function MeuPlanoView({ token, carwashId, accessInfo }) {
   const planLabel = { monthly: "Mensal", semiannual: "Semestral", annual: "Anual", courtesy: "Cortesia" };
@@ -2069,9 +2313,10 @@ export default function App() {
   const renderView = () => {
     const common = { token, carwashId, isMobile };
     switch (activeView) {
-      case "dashboard":  return isAdmin ? <Dashboard {...common} /> : <EmployeeDashboard {...common} employeeId={employeeId} />;
-      case "orders":     return <ServiceOrdersView {...common} employeeId={employeeId} isAdmin={isAdmin} />;
-      case "clients":    return <ClientsView {...common} isAdmin={isAdmin} />;
+      case "dashboard":     return isAdmin ? <Dashboard {...common} /> : <EmployeeDashboard {...common} employeeId={employeeId} />;
+      case "orders":        return <ServiceOrdersView {...common} employeeId={employeeId} isAdmin={isAdmin} />;
+      case "appointments":  return <AppointmentsView {...common} isAdmin={isAdmin} employeeId={employeeId} />;
+      case "clients":       return <ClientsView {...common} isAdmin={isAdmin} />;
       case "vehicles":   return isAdmin ? <VehiclesView {...common} /> : null;
       case "employees":  return isAdmin ? <EmployeesView {...common} /> : null;
       case "services":   return isAdmin ? <ServicesView {...common} /> : null;
