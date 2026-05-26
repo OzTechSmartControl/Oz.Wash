@@ -221,9 +221,9 @@ const inputSt = {
 };
 
 const Modal = ({ title, onClose, children }) => (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", backdropFilter: "blur(4px)" }}
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", backdropFilter: "blur(4px)" }}
     onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 540, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 18, width: "100%", maxWidth: 540, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 1.5rem", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
         <h3 style={{ margin: 0, fontFamily: "'Bebas Neue', sans-serif", fontSize: 21, letterSpacing: 1.5, color: T.text }}>{title}</h3>
         <button onClick={onClose} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}><X size={18} /></button>
